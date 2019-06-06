@@ -143,23 +143,23 @@ desenhaTelaInicial proc
 	ret
 desenhaTelaInicial endp
 
-; desenharSeletor eax
+; desenharSeletor
 ; Desenha o seletor do menu
-desenharSeletor proc uses eax
+desenharSeletor proc
 	call moverParaSeletor
 	
-	mov al, 175
+	mWriteChar 175
 	call WriteChar
 
 	ret
 desenharSeletor endp
 
-; limparSeletor eax
+; limparSeletor
 ; Apaga o seletor do menu
-limparSeletor proc uses eax
+limparSeletor proc
 	call moverParaSeletor
 
-	mov al, " "
+	mWriteChar 32
 	call WriteChar
 	
 	ret
