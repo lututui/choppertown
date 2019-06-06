@@ -15,6 +15,12 @@ tela_base BYTE 201, colunas - 2 DUP(205), 187, 0,
 
 .code
 
+;;
+;; MACROS
+;;
+
+; mWriteChar chr
+; Escreve o caractere chr no console
 mWriteChar macro chr
 	push eax
 	mov al, chr
@@ -22,35 +28,20 @@ mWriteChar macro chr
 	pop eax
 endm
 
-main proc
-mainLp:
-	cmp tela_atual, 0
-	je tlInit
+;; FIM: MACROS
 
-	cmp tela_atual, 1
-	je tlInstr
 
-	cmp tela_atual, 2
-	je tlSobre
+;;
+;; PROCEDIMENTOS
+;;
 
-	jmp mainLp
+;;;
+;;; Procedimentos que desenham
+;;;
 
-tlInit:
-	call telaInicial
-	jmp mainLp
 
-tlInstr:
-	call telaInstrucoes
-	jmp mainLp
-
-tlSobre:
-	call telaSobre
-	jmp mainLp
-	
-
-	exit
-main endp
-
+; desenharTelaBase edx, ecx
+; Escreve na tela, a partir de (0,0), tela_base
 desenharTelaBase proc uses edx ecx
 	mGotoxy 0, 0
 	mov edx, OFFSET tela_base
@@ -64,6 +55,8 @@ LtelaBase:
 	ret
 desenharTelaBase endp
 
+; desenharTelaSobre
+; Desenha a tela acessável pelo menu "Sobre" no console
 desenharTelaSobre proc
 	call desenharTelaBase
 
@@ -95,6 +88,8 @@ desenharTelaSobre proc
 	ret
 desenharTelaSobre endp
 
+; desenharTelaInstrucoes
+; Desenha a tela acessável pelo menu "Como Jogar" no console
 desenharTelaInstrucoes proc
 	call desenharTelaBase
 	
@@ -128,6 +123,8 @@ desenharTelaInstrucoes proc
 	ret
 desenharTelaInstrucoes endp
 
+; desenharTelaInicial
+; Desenha a tela exibida quando o jogo é iniciado
 desenhaTelaInicial proc
 	call desenharTelaBase
 	
@@ -146,6 +143,36 @@ desenhaTelaInicial proc
 	ret
 desenhaTelaInicial endp
 
+; desenharSeletor eax
+; Desenha o seletor do menu
+desenharSeletor proc uses eax
+	call moverParaSeletor
+	
+	mov al, 175
+	call WriteChar
+
+	ret
+desenharSeletor endp
+
+; limparSeletor eax
+; Apaga o seletor do menu
+limparSeletor proc uses eax
+	call moverParaSeletor
+
+	mov al, " "
+	call WriteChar
+	
+	ret
+limparSeletor endp
+
+;;; FIM: Procedimentos que desenham
+
+;;;
+;;; Procedimentos que movem o cursor
+;;;
+
+; moverParaSeletor
+; Move o cursor para a posição do seletor do menu
 moverParaSeletor proc
 	cmp opcao_selecionada, 0
 	je seletor0
@@ -164,24 +191,14 @@ seletor1 :
 	ret
 moverParaSeletor endp
 
-desenharSeletor proc uses eax
-	call moverParaSeletor
-	
-	mov al, 175
-	call WriteChar
+;;; FIM: Procedimentos que movem o cursor
 
-	ret
-desenharSeletor endp
+;;; 
+;;; Procedimentos que controlam o seletor do menu
+;;;
 
-limparSeletor proc uses eax
-	call moverParaSeletor
-
-	mov al, " "
-	call WriteChar
-	
-	ret
-limparSeletor endp
-
+; incOpcaoSelecionada
+; Move o seletor para baixo na memória
 incOpcaoSelecionada proc
 	cmp opcao_selecionada, 2
 	jl incSimplesOS
@@ -193,6 +210,8 @@ incSimplesOS:
 	ret
 incOpcaoSelecionada endp
 
+; decpcaoSelecionada
+; Move o seletor para cima na memória
 decOpcaoSelecionada proc
 	cmp opcao_selecionada, 0
 	jg decSimplesOS
@@ -204,6 +223,14 @@ decSimplesOS :
 	ret
 decOpcaoSelecionada endp
 
+;;; FIM: Procedimentos que controlam o seletor do menu
+
+;;;
+;;; Procedimentos controladores de tela
+;;;
+
+; telaInstrucoes eax edx
+; Controla a tela de "Como Jogar"
 telaInstrucoes proc uses eax edx
 	call desenharTelaInstrucoes
 
@@ -225,6 +252,8 @@ T_INSTR_TECLA_ESC:
 
 telaInstrucoes endp
 
+; telaSobre eax edx
+; Controla a tela de "Sobre"
 telaSobre proc uses eax edx
 	call desenharTelaSobre
 
@@ -246,6 +275,8 @@ T_SOBRE_TECLA_ESC :
 
 telaSobre endp
 
+; telaInicial eax edx
+; Controla a tela inicial
 telaInicial proc uses eax edx
 	call desenhaTelaInicial
 	call desenharSeletor
@@ -305,8 +336,38 @@ T_INI_TECLA_ENTER :
 		mov tela_atual, 2
 		ret
 	
-
 	ret 
 telaInicial endp
+
+;;; FIM: Procedimentos controladores de tela
+;; FIM: PROCEDIMENTOS
+
+main proc
+mainLp:
+	cmp tela_atual, 0
+	je tlInit
+
+	cmp tela_atual, 1
+	je tlInstr
+
+	cmp tela_atual, 2
+	je tlSobre
+
+	jmp mainLp
+
+tlInit:
+	call telaInicial
+	jmp mainLp
+
+tlInstr:
+	call telaInstrucoes
+	jmp mainLp
+
+tlSobre:
+	call telaSobre
+	jmp mainLp
+
+	exit
+main endp
 
 end main
