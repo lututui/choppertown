@@ -8,10 +8,11 @@ seletor_offset = 12
 seletor_step = 2
 
 opcao_selecionada BYTE 0
-tela_atual BYTE 0
+tela_atual BYTE 3
 tela_base BYTE 201, colunas - 2 DUP(205), 187, 0,
 			linhas - 2 DUP(186, colunas - 2 DUP(" "), 186, 0),
 			200, colunas - 2 DUP(205), 188, 0
+heli_pos BYTE 3
 
 .code
 
@@ -28,12 +29,55 @@ mWriteChar macro chr
 	pop eax
 endm
 
+; mMovMMB m1, m2
+; Move um byte da posição de memória m2 para a posição de memória m1
+mMovMMB macro m1, m2
+	push eax
+	mov al, m2
+	mov m1, al
+	pop eax
+endm
+
 ;; FIM: MACROS
 
 
 ;;
 ;; PROCEDIMENTOS
 ;;
+
+desenharHelicoptero proc uses edx
+	mov dl, 3
+	mov dh, heli_pos
+	call Gotoxy
+	mWrite "   -----|-----"
+	
+	inc dh
+	call Gotoxy
+	mWrite "*>=====[_]L)"
+	
+	inc dh
+	call Gotoxy
+	mWrite "      -'-`-"
+	
+	ret
+desenharHelicoptero endp
+
+apagarHelicoptero proc uses edx
+	mov dl, 3
+	mov dh, heli_pos
+	call Gotoxy
+	mWrite "              "
+	
+	inc dh
+	call Gotoxy
+	mWrite "              "
+	
+	inc dh
+	call Gotoxy
+	mWrite "              "
+	
+	ret
+apagarHelicoptero endp
 
 ;;;
 ;;; Procedimentos que desenham
@@ -223,9 +267,89 @@ decOpcaoSelecionada endp
 
 ;;; FIM: Procedimentos que controlam o seletor do menu
 
+;;; 
+;;; Procedimentos que controlam o helicóptero verticalmente
+;;;
+
+; incHelicoptero
+; Move o helicoptero para baixo na tela
+incHelicoptero proc
+	cmp heli_pos, 25
+	jg retIncHeli
+	
+	call apagarHelicoptero
+	
+	inc heli_pos
+	call desenharHelicoptero
+
+retIncHeli:
+	ret
+incHelicoptero endp
+
+; incHelicoptero
+; Move o helicoptero para cima na tela
+decHelicoptero proc
+	cmp heli_pos, 2
+	jl retDecHeli
+
+	call apagarHelicoptero
+	
+	dec heli_pos
+	call desenharHelicoptero
+
+retDecHeli:
+	ret
+decHelicoptero endp
+
+
 ;;;
 ;;; Procedimentos controladores de tela
 ;;;
+
+
+; telaPrincipal eax edx
+; Controla a tela de jogo
+telaPrincipal proc uses eax edx
+	call desenharTelaBase
+	call desenharHelicoptero
+
+loopTelaPrincipal:
+	mov eax, 50
+	call Delay
+
+	call ReadKey
+	jz loopTelaPrincipal
+	
+	cmp dx, VK_ESCAPE
+	je T_PRIN_TECLA_ESC
+	
+	cmp dx, VK_DOWN
+	je T_PRIN_TECLA_DOWN
+	
+	cmp dx, 53h
+	je T_PRIN_TECLA_DOWN
+	
+	cmp dx, VK_UP
+	je T_PRIN_TECLA_UP
+	
+	cmp dx, 57h
+	je T_PRIN_TECLA_UP
+	
+	jmp loopTelaPrincipal	
+
+T_PRIN_TECLA_DOWN:
+	call incHelicoptero
+	jmp loopTelaPrincipal
+	
+T_PRIN_TECLA_UP:
+	call decHelicoptero
+	jmp loopTelaPrincipal
+
+T_PRIN_TECLA_ESC:
+	mov tela_atual, 3
+	ret
+telaPrincipal endp
+
 
 ; telaInstrucoes eax edx
 ; Controla a tela de "Como Jogar"
@@ -245,7 +369,7 @@ loopTelaInstrucoes:
 	jmp loopTelaInstrucoes
 
 T_INSTR_TECLA_ESC:
-	mov tela_atual, 0
+	mov tela_atual, 3
 	ret
 
 telaInstrucoes endp
@@ -268,7 +392,7 @@ loopTelaSobre :
 	jmp loopTelaSobre
 
 T_SOBRE_TECLA_ESC :
-	mov tela_atual, 0
+	mov tela_atual, 3
 	ret
 
 telaSobre endp
@@ -317,23 +441,8 @@ T_INI_TECLA_PARA_CIMA :
 
 	jmp loopTelaInicial
 
-T_INI_TECLA_ENTER :
-	cmp opcao_selecionada, 1
-	je telaAtual1
-
-	cmp opcao_selecionada, 2
-	je telaAtual2
-
-	jmp loopTelaInicial
-
-	telaAtual1:
-		mov tela_atual, 1
-		ret
-
-	telaAtual2:
-		mov tela_atual, 2
-		ret
-	
+T_INI_TECLA_ENTER:
+	mMovMMB tela_atual, opcao_selecionada
 	ret 
 telaInicial endp
 
@@ -343,13 +452,16 @@ telaInicial endp
 main proc
 mainLp:
 	cmp tela_atual, 0
-	je tlInit
+	je tlPrin
 
 	cmp tela_atual, 1
 	je tlInstr
 
 	cmp tela_atual, 2
 	je tlSobre
+	
+	cmp tela_atual, 3
+	je tlInit
 
 	jmp mainLp
 
@@ -363,6 +475,10 @@ tlInstr:
 
 tlSobre:
 	call telaSobre
+	jmp mainLp
+
+tlPrin:
+	call telaPrincipal
 	jmp mainLp
 
 	exit
