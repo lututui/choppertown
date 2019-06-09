@@ -149,7 +149,6 @@ desenharSeletor proc
 	call moverParaSeletor
 	
 	mWriteChar 175
-	call WriteChar
 
 	ret
 desenharSeletor endp
@@ -160,7 +159,6 @@ limparSeletor proc
 	call moverParaSeletor
 
 	mWriteChar 32
-	call WriteChar
 	
 	ret
 limparSeletor endp
