@@ -125,7 +125,7 @@ desenharTelaInstrucoes endp
 
 ; desenharTelaInicial
 ; Desenha a tela exibida quando o jogo é iniciado
-desenhaTelaInicial proc
+desenharTelaInicial proc
 	call desenharTelaBase
 	
 	mGotoxy 53, 5
@@ -141,7 +141,7 @@ desenhaTelaInicial proc
 	mWrite "Sobre"
 
 	ret
-desenhaTelaInicial endp
+desenharTelaInicial endp
 
 ; desenharSeletor
 ; Desenha o seletor do menu
@@ -208,7 +208,7 @@ incSimplesOS:
 	ret
 incOpcaoSelecionada endp
 
-; decpcaoSelecionada
+; decOpcaoSelecionada
 ; Move o seletor para cima na memória
 decOpcaoSelecionada proc
 	cmp opcao_selecionada, 0
@@ -276,7 +276,7 @@ telaSobre endp
 ; telaInicial eax edx
 ; Controla a tela inicial
 telaInicial proc uses eax edx
-	call desenhaTelaInicial
+	call desenharTelaInicial
 	call desenharSeletor
 
 loopTelaInicial:
