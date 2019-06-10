@@ -46,15 +46,6 @@ mWriteChar macro chr
 	pop eax
 endm
 
-; mMovMMB m1, m2
-; Move um byte da posição de memória m2 para a posição de memória m1
-mMovMMB macro m1, m2
-	push eax
-	mov al, m2
-	mov m1, al
-	pop eax
-endm
-
 ;; FIM: MACROS
 
 
@@ -643,7 +634,9 @@ T_INI_TECLA_PARA_CIMA :
 	jmp loopTelaInicial
 
 T_INI_TECLA_ENTER:
-	mMovMMB tela_atual, opcao_selecionada
+	mov edi, offset tela_atual
+	mov esi, offset opcao_selecionada
+	movsb
 	ret 
 telaInicial endp
 
