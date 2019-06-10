@@ -4,8 +4,12 @@ INCLUDE macros.inc
 .data
 linhas = 30
 colunas = 120
-seletor_offset = 12
-seletor_step = 2
+
+SELETOR_OFFSET = 12
+SELETOR_STEP = 2
+
+PREDIO_ALTURA = 13
+PREDIO_LARGURA = 5
 
 opcao_selecionada BYTE 0
 tela_atual BYTE 3
@@ -13,6 +17,19 @@ tela_base BYTE 201, colunas - 2 DUP(205), 187, 0,
 			linhas - 2 DUP(186, colunas - 2 DUP(" "), 186, 0),
 			200, colunas - 2 DUP(205), 188, 0
 heli_pos BYTE 3
+predios_pos BYTE colunas / 3 DUP(0FFh)
+predios_count BYTE 0
+predios_off BYTE 0
+predios_len BYTE 0
+predios_write_buffer BYTE 6 DUP(?)
+
+predio_desenho BYTE " ___ ", 0, "| = |", 0, "|   |", 0, "| | |", 0,
+					"|   |", 0, "| | |", 0, "|   |", 0, "| | |", 0,
+					"| | |", 0, "|   |", 0, "| | |", 0, "| | |", 0,
+					"| | |", 0
+predio_clear BYTE 5 DUP (" "), 0
+
+timer DWORD ?
 
 .code
 
@@ -44,6 +61,168 @@ endm
 ;;
 ;; PROCEDIMENTOS
 ;;
+
+desenharSegmentoPredio proc uses ecx eax esi edi edx
+	movzx ecx, predios_len
+	
+	mov esi, offset predio_desenho
+	add esi, eax
+	movzx eax, predios_off
+	add esi, eax
+	
+	mov edi, offset predios_write_buffer
+	
+	rep movsb
+	
+	mov BYTE PTR [edi], 0
+	mov edx, offset predios_write_buffer
+	call WriteString
+	
+	ret
+desenharSegmentoPredio endp
+
+apagarSegmentoPredio proc uses ecx esi edi edx
+	movzx ecx, predios_len
+	
+	movzx esi, predios_off
+	add esi, offset predio_clear
+	
+	mov edi, offset predios_write_buffer
+	
+	rep movsb
+	
+	mov BYTE PTR [edi], 0
+	mov edx, offset predios_write_buffer
+	call WriteString
+	
+	ret
+apagarSegmentoPredio endp
+
+desenharPredio proc uses ebx edx eax ecx
+	mov dl, predios_pos[ebx]
+	
+	cmp dl, 0
+	jle J_DESENHAR_PREDIO_0
+	mov predios_off, 0
+
+	cmp dl, 120
+	jge EXIT_DESENHAR_PREDIO
+	
+	cmp dl, 115
+	jge J_DESENHAR_PREDIO_1
+	
+	mov predios_len, PREDIO_LARGURA
+	
+	jmp CONTINUE_DESENHAR_PREDIO_0
+	
+J_DESENHAR_PREDIO_0:
+	not dl
+	add dl, 2
+	mov predios_off, dl
+	mov dl, 1
+
+	jmp CONTINUE_DESENHAR_PREDIO_0
+
+J_DESENHAR_PREDIO_1:
+	mov predios_len, 119
+	sub predios_len, dl
+	
+CONTINUE_DESENHAR_PREDIO_0:
+	cmp predios_len, 0
+	je EXIT_DESENHAR_PREDIO
+	
+	mov dh, linhas - 1 - PREDIO_ALTURA
+	mov eax, 0
+	mov ecx, PREDIO_ALTURA
+
+L_DESENHAR_PREDIO:
+	call Gotoxy
+	call desenharSegmentoPredio
+	inc dh
+	add eax, PREDIO_LARGURA + 1
+	loop L_DESENHAR_PREDIO
+
+EXIT_DESENHAR_PREDIO:
+	ret
+desenharPredio endp
+
+apagarPredio proc uses edx ecx ebx
+	mov dl, predios_pos[ebx]
+	
+	cmp dl, 0
+	jle J_APAGAR_PREDIO_0
+	mov predios_off, 0
+	
+	cmp dl, 120
+	jge EXIT_APAGAR_PREDIO
+	
+	cmp dl, 115
+	jge J_APAGAR_PREDIO_1
+	mov predios_len, PREDIO_LARGURA
+	
+	jmp CONTINUE_APAGAR_PREDIO_0
+	
+J_APAGAR_PREDIO_0:
+	not dl
+	add dl, 2
+	mov predios_off, dl
+	mov dl, 1
+	
+	jmp CONTINUE_APAGAR_PREDIO_0
+
+J_APAGAR_PREDIO_1:
+	mov predios_len, 119
+	sub predios_len, dl
+	
+CONTINUE_APAGAR_PREDIO_0:
+	cmp predios_len, 0
+	je EXIT_APAGAR_PREDIO
+
+	mov dh, linhas - 1 - 13
+	mov ecx, 13
+
+L_APAGAR_PREDIO:
+	call Gotoxy
+	call apagarSegmentoPredio
+	inc dh
+	loop L_APAGAR_PREDIO
+
+EXIT_APAGAR_PREDIO:
+	ret
+apagarPredio endp
+
+moverPredios proc uses ecx ebx esi edi
+	movzx ecx, predios_count
+	cmp ecx, 0
+	je END_MOVER_PREDIOS
+	
+	mov ebx, 0
+L_MOVER_PREDIOS:
+	call apagarPredio
+	dec predios_pos[ebx]
+	
+	cmp predios_pos[0], -4
+	je SKIP_DESENHAR_MOVER_PREDIOS
+	
+	call desenharPredio
+	
+SKIP_DESENHAR_MOVER_PREDIOS:
+	inc ebx
+	loop L_MOVER_PREDIOS
+
+	cmp predios_pos[0], -4
+	jne END_MOVER_PREDIOS
+	
+	movzx ecx, predios_count
+	dec predios_count
+	mov edi, OFFSET predios_pos
+	mov esi, edi
+	inc esi
+	rep movsb
+
+END_MOVER_PREDIOS:
+	ret
+moverPredios endp
 
 desenharHelicoptero proc uses edx
 	mov dl, 3
@@ -86,15 +265,19 @@ apagarHelicoptero endp
 
 ; desenharTelaBase edx, ecx
 ; Escreve na tela, a partir de (0,0), tela_base
-desenharTelaBase proc uses edx ecx
-	mGotoxy 0, 0
+desenharTelaBase proc uses edx ecx eax
 	mov edx, OFFSET tela_base
 	mov ecx, linhas
+	mov al, 0
 
 LtelaBase:
+	mGotoxy 0, al
 	call WriteString
 	add edx, colunas + 1
+	inc al
 	loop LtelaBase
+
+	mGotoxy 0, 0
 
 	ret
 desenharTelaBase endp
@@ -221,15 +404,15 @@ moverParaSeletor proc
 	cmp opcao_selecionada, 1
 	je seletor1
 
-	mGotoxy 51, seletor_offset + 2 * seletor_step
+	mGotoxy 51, SELETOR_OFFSET + 2 * SELETOR_STEP
 	ret
 
 seletor0 :
-	mGotoxy 51, seletor_offset
+	mGotoxy 51, SELETOR_OFFSET
 	ret
 
 seletor1 :
-	mGotoxy 51, seletor_offset + seletor_step
+	mGotoxy 51, SELETOR_OFFSET + SELETOR_STEP
 	ret
 moverParaSeletor endp
 
@@ -309,16 +492,24 @@ decHelicoptero endp
 
 ; telaPrincipal eax edx
 ; Controla a tela de jogo
-telaPrincipal proc uses eax edx
+telaPrincipal proc uses eax edx ebx
 	call desenharTelaBase
 	call desenharHelicoptero
+	
+	call GetTickCount
+	mov timer, eax
+	
+	mov predios_pos[0], 130
+	inc predios_count
+	mov ebx, 0
+	call desenharPredio
 
 loopTelaPrincipal:
 	mov eax, 50
 	call Delay
 
 	call ReadKey
-	jz loopTelaPrincipal
+	jz T_PRIN_NO_KEY
 	
 	cmp dx, VK_ESCAPE
 	je T_PRIN_TECLA_ESC
@@ -335,15 +526,25 @@ loopTelaPrincipal:
 	cmp dx, 57h
 	je T_PRIN_TECLA_UP
 	
+T_PRIN_NO_KEY:
+	call GetTickCount
+	push eax
+	sub eax, timer
+	cmp eax, 100
+	jl loopTelaPrincipal
+	
+	call moverPredios
+	pop timer
+	
 	jmp loopTelaPrincipal	
 
 T_PRIN_TECLA_DOWN:
 	call incHelicoptero
-	jmp loopTelaPrincipal
+	jmp T_PRIN_NO_KEY
 	
 T_PRIN_TECLA_UP:
 	call decHelicoptero
-	jmp loopTelaPrincipal
+	jmp T_PRIN_NO_KEY
 
 T_PRIN_TECLA_ESC:
 	mov tela_atual, 3
