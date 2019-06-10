@@ -93,47 +93,47 @@ desenharPredio proc uses ebx edx eax ecx
 	mov dl, predios_pos[ebx]
 	
 	cmp dl, 0
-	jle J_DESENHAR_PREDIO_0
+	jle LEAVING_SCREEN_LEFT
 	mov predios_off, 0
 
 	cmp dl, 120
-	jge EXIT_DESENHAR_PREDIO
+	jge J_EXIT
 	
 	cmp dl, 115
-	jge J_DESENHAR_PREDIO_1
+	jge ENTERING_SCREEN_RIGHT
 	
 	mov predios_len, PREDIO_LARGURA
 	
-	jmp CONTINUE_DESENHAR_PREDIO_0
+	jmp CONTINUE
 	
-J_DESENHAR_PREDIO_0:
+LEAVING_SCREEN_LEFT:
 	not dl
 	add dl, 2
 	mov predios_off, dl
 	mov dl, 1
 
-	jmp CONTINUE_DESENHAR_PREDIO_0
+	jmp CONTINUE
 
-J_DESENHAR_PREDIO_1:
+ENTERING_SCREEN_RIGHT:
 	mov predios_len, 119
 	sub predios_len, dl
 	
-CONTINUE_DESENHAR_PREDIO_0:
+CONTINUE:
 	cmp predios_len, 0
-	je EXIT_DESENHAR_PREDIO
+	je J_EXIT
 	
 	mov dh, linhas - 1 - PREDIO_ALTURA
 	mov eax, 0
 	mov ecx, PREDIO_ALTURA
 
-L_DESENHAR_PREDIO:
+LP_0:
 	call Gotoxy
 	call desenharSegmentoPredio
 	inc dh
 	add eax, PREDIO_LARGURA + 1
-	loop L_DESENHAR_PREDIO
+	loop LP_0
 
-EXIT_DESENHAR_PREDIO:
+J_EXIT:
 	ret
 desenharPredio endp
 
@@ -141,68 +141,68 @@ apagarPredio proc uses edx ecx ebx
 	mov dl, predios_pos[ebx]
 	
 	cmp dl, 0
-	jle J_APAGAR_PREDIO_0
+	jle LEAVING_SCREEN_LEFT
 	mov predios_off, 0
 	
 	cmp dl, 120
-	jge EXIT_APAGAR_PREDIO
+	jge J_EXIT
 	
 	cmp dl, 115
-	jge J_APAGAR_PREDIO_1
+	jge ENTERING_SCREEN_RIGHT
 	mov predios_len, PREDIO_LARGURA
 	
-	jmp CONTINUE_APAGAR_PREDIO_0
+	jmp CONTINUE
 	
-J_APAGAR_PREDIO_0:
+LEAVING_SCREEN_LEFT:
 	not dl
 	add dl, 2
 	mov predios_off, dl
 	mov dl, 1
 	
-	jmp CONTINUE_APAGAR_PREDIO_0
+	jmp CONTINUE
 
-J_APAGAR_PREDIO_1:
+ENTERING_SCREEN_RIGHT:
 	mov predios_len, 119
 	sub predios_len, dl
 	
-CONTINUE_APAGAR_PREDIO_0:
+CONTINUE:
 	cmp predios_len, 0
-	je EXIT_APAGAR_PREDIO
+	je J_EXIT
 
 	mov dh, linhas - 1 - 13
 	mov ecx, 13
 
-L_APAGAR_PREDIO:
+LP_0:
 	call Gotoxy
 	call apagarSegmentoPredio
 	inc dh
-	loop L_APAGAR_PREDIO
+	loop LP_0
 
-EXIT_APAGAR_PREDIO:
+J_EXIT:
 	ret
 apagarPredio endp
 
 moverPredios proc uses ecx ebx esi edi
 	movzx ecx, predios_count
 	cmp ecx, 0
-	je END_MOVER_PREDIOS
+	je J_EXIT
 	
 	mov ebx, 0
-L_MOVER_PREDIOS:
+LP_0:
 	call apagarPredio
 	dec predios_pos[ebx]
 	
 	cmp predios_pos[0], -4
-	je SKIP_DESENHAR_MOVER_PREDIOS
+	je SKIP_DESENHAR
 	
 	call desenharPredio
 	
-SKIP_DESENHAR_MOVER_PREDIOS:
+SKIP_DESENHAR:
 	inc ebx
-	loop L_MOVER_PREDIOS
+	loop LP_0
 
 	cmp predios_pos[0], -4
-	jne END_MOVER_PREDIOS
+	jne J_EXIT
 	
 	movzx ecx, predios_count
 	dec predios_count
@@ -211,7 +211,7 @@ SKIP_DESENHAR_MOVER_PREDIOS:
 	inc esi
 	rep movsb
 
-END_MOVER_PREDIOS:
+J_EXIT:
 	ret
 moverPredios endp
 
@@ -261,12 +261,12 @@ desenharTelaBase proc uses edx ecx eax
 	mov ecx, linhas
 	mov al, 0
 
-LtelaBase:
+LP_0:
 	mGotoxy 0, al
 	call WriteString
 	add edx, colunas + 1
 	inc al
-	loop LtelaBase
+	loop LP_0
 
 	mGotoxy 0, 0
 
@@ -389,21 +389,16 @@ limparSeletor endp
 
 ; moverParaSeletor
 ; Move o cursor para a posição do seletor do menu
-moverParaSeletor proc
-	cmp opcao_selecionada, 0
-	je seletor0
-	cmp opcao_selecionada, 1
-	je seletor1
-
-	mGotoxy 51, SELETOR_OFFSET + 2 * SELETOR_STEP
-	ret
-
-seletor0 :
-	mGotoxy 51, SELETOR_OFFSET
-	ret
-
-seletor1 :
-	mGotoxy 51, SELETOR_OFFSET + SELETOR_STEP
+moverParaSeletor proc uses eax edx
+	mov ah, opcao_selecionada
+	mov al, SELETOR_STEP
+	mul ah
+	add ax, SELETOR_OFFSET
+	
+	mov dl, 51
+	mov dh, al
+	call Gotoxy
+	
 	ret
 moverParaSeletor endp
 
@@ -416,26 +411,28 @@ moverParaSeletor endp
 ; incOpcaoSelecionada
 ; Move o seletor para baixo na memória
 incOpcaoSelecionada proc
-	cmp opcao_selecionada, 2
-	jl incSimplesOS
-	mov opcao_selecionada, 0
-	ret
-
-incSimplesOS:
 	inc opcao_selecionada
+	
+	cmp opcao_selecionada, 2
+	jle J_EXIT
+	
+	mov opcao_selecionada, 0
+
+J_EXIT:
 	ret
 incOpcaoSelecionada endp
 
 ; decOpcaoSelecionada
 ; Move o seletor para cima na memória
 decOpcaoSelecionada proc
-	cmp opcao_selecionada, 0
-	jg decSimplesOS
-	mov opcao_selecionada, 2
-	ret
-
-decSimplesOS :
 	dec opcao_selecionada
+	
+	cmp opcao_selecionada, 0
+	jge J_EXIT
+	
+	mov opcao_selecionada, 2
+
+J_EXIT:
 	ret
 decOpcaoSelecionada endp
 
@@ -449,14 +446,14 @@ decOpcaoSelecionada endp
 ; Move o helicoptero para baixo na tela
 incHelicoptero proc
 	cmp heli_pos, 25
-	jg retIncHeli
+	jg J_EXIT
 	
 	call apagarHelicoptero
 	
 	inc heli_pos
 	call desenharHelicoptero
 
-retIncHeli:
+J_EXIT:
 	ret
 incHelicoptero endp
 
@@ -464,14 +461,14 @@ incHelicoptero endp
 ; Move o helicoptero para cima na tela
 decHelicoptero proc
 	cmp heli_pos, 2
-	jl retDecHeli
+	jl J_EXIT
 
 	call apagarHelicoptero
 	
 	dec heli_pos
 	call desenharHelicoptero
 
-retDecHeli:
+J_EXIT:
 	ret
 decHelicoptero endp
 
@@ -495,49 +492,49 @@ telaPrincipal proc uses eax edx ebx
 	mov ebx, 0
 	call desenharPredio
 
-loopTelaPrincipal:
+LP_0:
 	mov eax, 50
 	call Delay
 
 	call ReadKey
-	jz T_PRIN_NO_KEY
+	jz NO_KEY
 	
 	cmp dx, VK_ESCAPE
-	je T_PRIN_TECLA_ESC
+	je TECLA_ESC
 	
 	cmp dx, VK_DOWN
-	je T_PRIN_TECLA_DOWN
+	je TECLA_DOWN
 	
 	cmp dx, 53h
-	je T_PRIN_TECLA_DOWN
+	je TECLA_DOWN
 	
 	cmp dx, VK_UP
-	je T_PRIN_TECLA_UP
+	je TECLA_UP
 	
 	cmp dx, 57h
-	je T_PRIN_TECLA_UP
+	je TECLA_UP
 	
-T_PRIN_NO_KEY:
+NO_KEY:
 	call GetTickCount
 	push eax
 	sub eax, timer
 	cmp eax, 100
-	jl loopTelaPrincipal
+	jl LP_0
 	
 	call moverPredios
 	pop timer
 	
-	jmp loopTelaPrincipal	
+	jmp LP_0	
 
-T_PRIN_TECLA_DOWN:
+TECLA_DOWN:
 	call incHelicoptero
-	jmp T_PRIN_NO_KEY
+	jmp NO_KEY
 	
-T_PRIN_TECLA_UP:
+TECLA_UP:
 	call decHelicoptero
-	jmp T_PRIN_NO_KEY
+	jmp NO_KEY
 
-T_PRIN_TECLA_ESC:
+TECLA_ESC:
 	mov tela_atual, 3
 	ret
 telaPrincipal endp
@@ -548,19 +545,19 @@ telaPrincipal endp
 telaInstrucoes proc uses eax edx
 	call desenharTelaInstrucoes
 
-loopTelaInstrucoes:
+LP_0:
 	mov eax, 50
 	call Delay
 
 	call ReadKey
-	jz loopTelaInstrucoes
+	jz LP_0
 
 	cmp dx, VK_ESCAPE
-	je T_INSTR_TECLA_ESC
+	je TECLA_ESC
 
-	jmp loopTelaInstrucoes
+	jmp LP_0
 
-T_INSTR_TECLA_ESC:
+TECLA_ESC:
 	mov tela_atual, 3
 	ret
 
@@ -571,19 +568,19 @@ telaInstrucoes endp
 telaSobre proc uses eax edx
 	call desenharTelaSobre
 
-loopTelaSobre :
+LP_0:
 	mov eax, 50
 	call Delay
 
 	call ReadKey
-	jz loopTelaSobre
+	jz LP_0
 
 	cmp dx, VK_ESCAPE
-	je T_SOBRE_TECLA_ESC
+	je TECLA_ESC
 
-	jmp loopTelaSobre
+	jmp LP_0
 
-T_SOBRE_TECLA_ESC :
+TECLA_ESC:
 	mov tela_atual, 3
 	ret
 
@@ -595,45 +592,45 @@ telaInicial proc uses eax edx
 	call desenharTelaInicial
 	call desenharSeletor
 
-loopTelaInicial:
+LP_0:
 	mov eax, 50
 	call Delay
 
 	call ReadKey
-	jz loopTelaInicial
+	jz LP_0
 	
 	cmp dx, VK_DOWN
-	je T_INI_TECLA_PARA_BAIXO
+	je TECLA_DOWN
 
 	cmp dx, 53h
-	je T_INI_TECLA_PARA_BAIXO
+	je TECLA_DOWN
 
 	cmp dx, VK_UP
-	je T_INI_TECLA_PARA_CIMA
+	je TECLA_UP
 
 	cmp dx, 57h
-	je T_INI_TECLA_PARA_CIMA
+	je TECLA_UP
 
 	cmp dx, VK_RETURN
-	je T_INI_TECLA_ENTER
+	je TECLA_ENTER
 
-	jmp loopTelaInicial
+	jmp LP_0
 
-T_INI_TECLA_PARA_BAIXO :
+TECLA_DOWN:
 	call limparSeletor
 	call incOpcaoSelecionada
 	call desenharSeletor
 
-	jmp loopTelaInicial
+	jmp LP_0
 
-T_INI_TECLA_PARA_CIMA :
+TECLA_UP:
 	call limparSeletor
 	call decOpcaoSelecionada
 	call desenharSeletor
 
-	jmp loopTelaInicial
+	jmp LP_0
 
-T_INI_TECLA_ENTER:
+TECLA_ENTER:
 	mov edi, offset tela_atual
 	mov esi, offset opcao_selecionada
 	movsb
@@ -644,36 +641,36 @@ telaInicial endp
 ;; FIM: PROCEDIMENTOS
 
 main proc
-mainLp:
+LP_0:
 	cmp tela_atual, 0
-	je tlPrin
+	je PRINCIPAL
 
 	cmp tela_atual, 1
-	je tlInstr
+	je INSTRUCOES
 
 	cmp tela_atual, 2
-	je tlSobre
+	je SOBRE
 	
 	cmp tela_atual, 3
-	je tlInit
+	je INICIAL
 
-	jmp mainLp
+	jmp LP_0
 
-tlInit:
+INICIAL:
 	call telaInicial
-	jmp mainLp
+	jmp LP_0
 
-tlInstr:
+INSTRUCOES:
 	call telaInstrucoes
-	jmp mainLp
+	jmp LP_0
 
-tlSobre:
+SOBRE:
 	call telaSobre
-	jmp mainLp
+	jmp LP_0
 
-tlPrin:
+PRINCIPAL:
 	call telaPrincipal
-	jmp mainLp
+	jmp LP_0
 
 	exit
 main endp
