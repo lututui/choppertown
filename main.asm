@@ -77,41 +77,40 @@ endm
 ;; PROCEDIMENTOS
 ;;
 
-desenharSegmentoPredio proc uses ecx eax esi edi edx
+;----------------------------------------------------
+manipularSegmentoPredio proc
+; Desenha ou apaga um segmento do predio
+;----------------------------------------------------
+	push ebp
+	mov ebp, esp
+	
+	push ecx
+	push eax
+	push edx
+	
 	movzx ecx, predios_len
 	
-	mov esi, offset predio_desenho
-	add esi, eax
+	mov esi, [ebp + 8]
+	add esi, [ebp + 12]
 	movzx eax, predios_off
 	add esi, eax
 	
 	mov edi, offset predios_write_buffer
 	
 	rep movsb
-	
 	mov BYTE PTR [edi], 0
 	mov edx, offset predios_write_buffer
 	call WriteString
 	
-	ret
-desenharSegmentoPredio endp
-
-apagarSegmentoPredio proc uses ecx esi edi edx
-	movzx ecx, predios_len
+	pop edx
+	pop eax
+	pop ecx
 	
-	movzx esi, predios_off
-	add esi, offset predio_clear
+	mov esp, ebp
+	pop ebp
 	
-	mov edi, offset predios_write_buffer
-	
-	rep movsb
-	
-	mov BYTE PTR [edi], 0
-	mov edx, offset predios_write_buffer
-	call WriteString
-	
-	ret
-apagarSegmentoPredio endp
+	ret 8
+manipularSegmentoPredio endp
 
 desenharSegmentoPassaro proc uses ecx esi edi edx
 	movzx ecx, passaros_len
@@ -276,7 +275,11 @@ CONTINUE:
 
 LP_0:
 	call Gotoxy
-	call desenharSegmentoPredio
+	
+	push eax
+	push offset predio_desenho
+	call manipularSegmentoPredio
+	
 	inc dh
 	add eax, PREDIO_LARGURA + 1
 	loop LP_0
@@ -326,7 +329,11 @@ CONTINUE:
 
 LP_0:
 	call Gotoxy
-	call apagarSegmentoPredio
+	
+	push 0
+	push offset predio_clear
+	call manipularSegmentoPredio
+	
 	inc dh
 	loop LP_0
 
