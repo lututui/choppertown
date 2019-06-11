@@ -2,8 +2,8 @@ INCLUDE Irvine32.inc
 INCLUDE macros.inc
 
 .data
-linhas = 30
-colunas = 120
+LINHAS = 30
+COLUNAS = 120
 
 SELETOR_OFFSET = 12
 SELETOR_STEP = 2
@@ -13,11 +13,11 @@ PREDIO_LARGURA = 5
 
 opcao_selecionada BYTE 0
 tela_atual BYTE 3
-tela_base BYTE 201, colunas - 2 DUP(205), 187, 0,
-			linhas - 2 DUP(186, colunas - 2 DUP(" "), 186, 0),
-			200, colunas - 2 DUP(205), 188, 0
+tela_base BYTE 201, COLUNAS - 2 DUP(205), 187, 0,
+			LINHAS - 2 DUP(186, COLUNAS - 2 DUP(" "), 186, 0),
+			200, COLUNAS - 2 DUP(205), 188, 0
 heli_pos BYTE 3
-predios_pos BYTE colunas / 3 DUP(0FFh)
+predios_pos BYTE COLUNAS / 3 DUP(0FFh)
 predios_count BYTE 0
 predios_off BYTE 0
 predios_len BYTE 0
@@ -28,6 +28,7 @@ predio_desenho BYTE " ___ ", 0, "| = |", 0, "|   |", 0, "| | |", 0,
 					"| | |", 0, "|   |", 0, "| | |", 0, "| | |", 0,
 					"| | |", 0
 predio_clear BYTE 5 DUP (" "), 0
+colidiu BYTE 0
 
 timer DWORD ?
 
@@ -111,6 +112,8 @@ LEAVING_SCREEN_LEFT:
 	add dl, 2
 	mov predios_off, dl
 	mov dl, 1
+	
+	mov predios_len, PREDIO_LARGURA
 
 	jmp CONTINUE
 
@@ -122,7 +125,7 @@ CONTINUE:
 	cmp predios_len, 0
 	je J_EXIT
 	
-	mov dh, linhas - 1 - PREDIO_ALTURA
+	mov dh, LINHAS - 1 - PREDIO_ALTURA
 	mov eax, 0
 	mov ecx, PREDIO_ALTURA
 
@@ -169,8 +172,8 @@ CONTINUE:
 	cmp predios_len, 0
 	je J_EXIT
 
-	mov dh, linhas - 1 - 13
-	mov ecx, 13
+	mov dh, LINHAS - 1 - PREDIO_ALTURA
+	mov ecx, PREDIO_ALTURA
 
 LP_0:
 	call Gotoxy
@@ -181,6 +184,45 @@ LP_0:
 J_EXIT:
 	ret
 apagarPredio endp
+
+colisaoPredios proc
+	cmp heli_pos, 14
+	jl J_EXIT
+	
+	cmp heli_pos, 16
+	jge TOPO_COLIDE
+	
+	cmp heli_pos, 15
+	je MEIO_COLIDE
+	
+	jmp BAIXO_COLIDE
+
+TOPO_COLIDE:
+	cmp predios_pos[0], 17
+	jge J_EXIT
+	cmp predios_pos[0], 1
+	jle J_EXIT
+	jmp COLIDE
+
+MEIO_COLIDE:
+	cmp predios_pos[0], 15
+	jge J_EXIT
+	cmp predios_pos[0], -2
+	jle J_EXIT
+	jmp COLIDE
+	
+BAIXO_COLIDE:
+	cmp predios_pos[0], 14
+	jge J_EXIT
+	cmp predios_pos[0], 4
+	jle J_EXIT
+
+COLIDE:
+	mov colidiu, 1
+	
+J_EXIT:
+	ret
+colisaoPredios endp
 
 moverPredios proc uses ecx ebx esi edi
 	movzx ecx, predios_count
@@ -216,35 +258,39 @@ J_EXIT:
 moverPredios endp
 
 desenharHelicoptero proc uses edx
-	mov dl, 3
+	mov dl, 6
 	mov dh, heli_pos
 	call Gotoxy
-	mWrite "   -----|-----"
+	mWrite "-----|-----"
 	
-	inc dh
+	mov dl, 3
+	add dh, 1
 	call Gotoxy
 	mWrite "*>=====[_]L)"
 	
-	inc dh
+	mov dl, 9
+	add dh, 1
 	call Gotoxy
-	mWrite "      -'-`-"
+	mWrite "-'-`-"
 	
 	ret
 desenharHelicoptero endp
 
 apagarHelicoptero proc uses edx
-	mov dl, 3
+	mov dl, 6
 	mov dh, heli_pos
 	call Gotoxy
-	mWrite "              "
+	mWrite "           "
 	
-	inc dh
+	mov dl, 3
+	add dh, 1
 	call Gotoxy
-	mWrite "              "
+	mWrite "            "
 	
-	inc dh
+	mov dl, 9
+	add dh, 1
 	call Gotoxy
-	mWrite "              "
+	mWrite "     "
 	
 	ret
 apagarHelicoptero endp
@@ -258,13 +304,13 @@ apagarHelicoptero endp
 ; Escreve na tela, a partir de (0,0), tela_base
 desenharTelaBase proc uses edx ecx eax
 	mov edx, OFFSET tela_base
-	mov ecx, linhas
+	mov ecx, LINHAS
 	mov al, 0
 
 LP_0:
 	mGotoxy 0, al
 	call WriteString
-	add edx, colunas + 1
+	add edx, COLUNAS + 1
 	inc al
 	loop LP_0
 
@@ -487,7 +533,7 @@ telaPrincipal proc uses eax edx ebx
 	call GetTickCount
 	mov timer, eax
 	
-	mov predios_pos[0], 130
+	mov predios_pos[0], 16
 	inc predios_count
 	mov ebx, 0
 	call desenharPredio
@@ -502,6 +548,9 @@ LP_0:
 	cmp dx, VK_ESCAPE
 	je TECLA_ESC
 	
+	cmp colidiu, 1
+	je LP_0
+	
 	cmp dx, VK_DOWN
 	je TECLA_DOWN
 	
@@ -515,6 +564,9 @@ LP_0:
 	je TECLA_UP
 	
 NO_KEY:
+	cmp colidiu, 1
+	je LP_0
+	
 	call GetTickCount
 	push eax
 	sub eax, timer
@@ -522,6 +574,8 @@ NO_KEY:
 	jl LP_0
 	
 	call moverPredios
+	call colisaoPredios
+	
 	pop timer
 	
 	jmp LP_0	
