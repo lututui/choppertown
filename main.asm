@@ -11,23 +11,43 @@ SELETOR_STEP = 2
 PREDIO_ALTURA = 13
 PREDIO_LARGURA = 5
 
+PASSARO_LARGURA = 5
+
+COORDENADA STRUCT
+	X BYTE 0FFh
+	Y BYTE 0FFh
+COORDENADA ENDS
+
+
+
 opcao_selecionada BYTE 0
+
 tela_atual BYTE 3
 tela_base BYTE 201, COLUNAS - 2 DUP(205), 187, 0,
 			LINHAS - 2 DUP(186, COLUNAS - 2 DUP(" "), 186, 0),
 			200, COLUNAS - 2 DUP(205), 188, 0
+
 heli_pos BYTE 3
+
 predios_pos BYTE COLUNAS / 3 DUP(0FFh)
 predios_count BYTE 0
 predios_off BYTE 0
 predios_len BYTE 0
 predios_write_buffer BYTE 6 DUP(?)
-
 predio_desenho BYTE " ___ ", 0, "| = |", 0, "|   |", 0, "| | |", 0,
 					"|   |", 0, "| | |", 0, "|   |", 0, "| | |", 0,
 					"| | |", 0, "|   |", 0, "| | |", 0, "| | |", 0,
 					"| | |", 0
 predio_clear BYTE 5 DUP (" "), 0
+
+passaros_pos COORDENADA COLUNAS / 3 DUP(<>)
+passaros_count BYTE 0
+passaros_off BYTE 0
+passaros_len BYTE 0
+passaros_write_buffer BYTE 6 DUP(?)
+passaro_desenho BYTE "/^v^", 5Ch, 0
+passaro_clear BYTE 5 DUP (" "), 0
+
 colidiu BYTE 0
 
 timer DWORD ?
@@ -38,9 +58,12 @@ timer DWORD ?
 ;; MACROS
 ;;
 
-; mWriteChar chr
-; Escreve o caractere chr no console
-mWriteChar macro chr
+;----------------------------------------------------
+mWriteChar macro chr:REQ
+;
+; Escreve um caractere no console
+;	Recebe: caractere chr (do tipo BYTE)
+;----------------------------------------------------
 	push eax
 	mov al, chr
 	call WriteChar
@@ -90,11 +113,133 @@ apagarSegmentoPredio proc uses ecx esi edi edx
 	ret
 apagarSegmentoPredio endp
 
+desenharSegmentoPassaro proc uses ecx esi edi edx
+	movzx ecx, passaros_len
+	
+	movzx esi, passaros_off
+	add esi, offset passaro_desenho
+	
+	mov edi, offset passaros_write_buffer
+	rep movsb
+	
+	mov BYTE PTR [edi], 0
+	mov edx, offset passaros_write_buffer
+	call WriteString
+	
+	ret	
+desenharSegmentoPassaro endp
+
+apagarSegmentoPassaro proc uses ecx esi edi edx
+	movzx ecx, passaros_len
+	
+	movzx esi, passaros_off
+	add esi, offset passaro_clear
+	
+	mov edi, offset passaros_write_buffer
+	
+	rep movsb
+	
+	mov BYTE PTR [edi], 0
+	mov edx, offset passaros_write_buffer
+	call WriteString
+	
+	ret
+apagarSegmentoPassaro endp
+
+desenharPassaro proc uses edx ebx
+	mov dl, (COORDENADA PTR [passaros_pos[ebx]]).X
+	mov dh, (COORDENADA PTR [passaros_pos[ebx]]).Y
+	
+	cmp dl, 0
+	jle LEAVING_SCREEN_LEFT
+	
+	mov passaros_off, 0
+	
+	cmp dl, 120
+	jge J_EXIT
+	
+	cmp dl, 115
+	jge ENTERING_SCREEN_RIGHT
+	
+	mov passaros_len, PASSARO_LARGURA
+	
+	jmp CONTINUE
+
+LEAVING_SCREEN_LEFT:
+	not dl
+	add dl, 2
+	mov passaros_off, dl
+	
+	mov dl, 1
+	mov passaros_len, PASSARO_LARGURA
+	
+	jmp CONTINUE
+	
+ENTERING_SCREEN_RIGHT:
+	mov passaros_len, 119
+	sub passaros_len, dl
+
+CONTINUE:
+	cmp passaros_len, 0
+	je J_EXIT
+	
+	call Gotoxy
+	call desenharSegmentoPassaro
+
+J_EXIT:
+	ret
+desenharPassaro endp
+
+apagarPassaro proc uses edx ebx
+	mov dl, (COORDENADA PTR [passaros_pos[ebx]]).X
+	mov dh, (COORDENADA PTR [passaros_pos[ebx]]).Y
+	
+	cmp dl, 0
+	jle LEAVING_SCREEN_LEFT
+	
+	mov passaros_off, 0
+	
+	cmp dl, 120
+	jge J_EXIT
+	
+	cmp dl, 115
+	jge ENTERING_SCREEN_RIGHT
+	
+	mov passaros_len, PASSARO_LARGURA
+	
+	jmp CONTINUE
+
+LEAVING_SCREEN_LEFT:
+	not dl
+	add dl, 2
+	mov passaros_off, dl
+	
+	mov dl, 1
+	mov passaros_len, PASSARO_LARGURA
+	
+	jmp CONTINUE
+	
+ENTERING_SCREEN_RIGHT:
+	mov passaros_len, 119
+	sub passaros_len, dl
+
+CONTINUE:
+	cmp passaros_len, 0
+	je J_EXIT
+	
+	call Gotoxy
+	call apagarSegmentoPassaro
+
+J_EXIT:
+	ret
+apagarPassaro endp
+
 desenharPredio proc uses ebx edx eax ecx
 	mov dl, predios_pos[ebx]
 	
 	cmp dl, 0
 	jle LEAVING_SCREEN_LEFT
+	
 	mov predios_off, 0
 
 	cmp dl, 120
@@ -145,6 +290,7 @@ apagarPredio proc uses edx ecx ebx
 	
 	cmp dl, 0
 	jle LEAVING_SCREEN_LEFT
+	
 	mov predios_off, 0
 	
 	cmp dl, 120
@@ -152,6 +298,7 @@ apagarPredio proc uses edx ecx ebx
 	
 	cmp dl, 115
 	jge ENTERING_SCREEN_RIGHT
+	
 	mov predios_len, PREDIO_LARGURA
 	
 	jmp CONTINUE
@@ -161,6 +308,8 @@ LEAVING_SCREEN_LEFT:
 	add dl, 2
 	mov predios_off, dl
 	mov dl, 1
+	
+	mov predios_len, PREDIO_LARGURA
 	
 	jmp CONTINUE
 
@@ -224,6 +373,40 @@ J_EXIT:
 	ret
 colisaoPredios endp
 
+moverPassaros proc
+	movzx ecx, passaros_count
+	cmp ecx, 0
+	je J_EXIT
+	
+	mov ebx, 0
+	
+LP_0:
+	call apagarPassaro
+	dec (COORDENADA PTR[passaros_pos[ebx]]).X
+	
+	cmp (COORDENADA PTR[passaros_pos[ebx]]).X, -4
+	je SKIP_DESENHAR
+	
+	call desenharPassaro
+
+SKIP_DESENHAR:
+	add ebx, 2
+	loop LP_0
+	
+	cmp (COORDENADA PTR[passaros_pos[0]]).X, -4
+	jne J_EXIT
+	
+	movzx ecx, passaros_count
+	dec passaros_count
+	mov edi, offset passaros_pos
+	mov esi, edi
+	add esi, 2
+	rep movsw
+
+J_EXIT:
+	ret
+moverPassaros endp
+
 moverPredios proc uses ecx ebx esi edi
 	movzx ecx, predios_count
 	cmp ecx, 0
@@ -234,7 +417,7 @@ LP_0:
 	call apagarPredio
 	dec predios_pos[ebx]
 	
-	cmp predios_pos[0], -4
+	cmp predios_pos[ebx], -4
 	je SKIP_DESENHAR
 	
 	call desenharPredio
@@ -537,6 +720,12 @@ telaPrincipal proc uses eax edx ebx
 	inc predios_count
 	mov ebx, 0
 	call desenharPredio
+	
+	mov (COORDENADA PTR [passaros_pos[0]]).X, 125
+	mov (COORDENADA PTR [passaros_pos[0]]).Y, 5
+	inc passaros_count
+	mov ebx, 0
+	call desenharPassaro
 
 LP_0:
 	mov eax, 50
@@ -575,6 +764,7 @@ NO_KEY:
 	
 	call moverPredios
 	call colisaoPredios
+	call moverPassaros
 	
 	pop timer
 	
