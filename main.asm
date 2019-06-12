@@ -141,7 +141,12 @@ manipularSegmentoPassaro proc
 	ret 4
 manipularSegmentoPassaro endp
 
-desenharPassaro proc uses edx ebx
+manipularPassaro proc
+	push ebp
+	mov ebp, esp
+	
+	push edx
+	
 	mov dl, (COORDENADA PTR [passaros_pos[ebx]]).X
 	mov dh, (COORDENADA PTR [passaros_pos[ebx]]).Y
 	
@@ -179,59 +184,27 @@ CONTINUE:
 	je J_EXIT
 	
 	call Gotoxy
+	
+	cmp DWORD PTR[ebp + 8], 0
+	je APAGAR
 	
 	push offset passaro_desenho
-	call manipularSegmentoPassaro
+	jmp CONTINUE2
 
-J_EXIT:
-	ret
-desenharPassaro endp
-
-apagarPassaro proc uses edx ebx
-	mov dl, (COORDENADA PTR [passaros_pos[ebx]]).X
-	mov dh, (COORDENADA PTR [passaros_pos[ebx]]).Y
-	
-	cmp dl, 0
-	jle LEAVING_SCREEN_LEFT
-	
-	mov passaros_off, 0
-	
-	cmp dl, 120
-	jge J_EXIT
-	
-	cmp dl, 115
-	jge ENTERING_SCREEN_RIGHT
-	
-	mov passaros_len, PASSARO_LARGURA
-	
-	jmp CONTINUE
-
-LEAVING_SCREEN_LEFT:
-	not dl
-	add dl, 2
-	mov passaros_off, dl
-	
-	mov dl, 1
-	mov passaros_len, PASSARO_LARGURA
-	
-	jmp CONTINUE
-	
-ENTERING_SCREEN_RIGHT:
-	mov passaros_len, 119
-	sub passaros_len, dl
-
-CONTINUE:
-	cmp passaros_len, 0
-	je J_EXIT
-	
-	call Gotoxy
-	
+APAGAR:
 	push offset passaro_clear
+
+CONTINUE2:
 	call manipularSegmentoPassaro
 
 J_EXIT:
-	ret
-apagarPassaro endp
+	pop edx
+	
+	mov esp, ebp
+	pop ebp
+	
+	ret 4
+manipularPassaro endp
 
 desenharPredio proc uses ebx edx eax ecx
 	mov dl, predios_pos[ebx]
@@ -388,13 +361,15 @@ moverPassaros proc
 	mov ebx, 0
 	
 LP_0:
-	call apagarPassaro
+	push 0
+	call manipularPassaro
 	dec (COORDENADA PTR[passaros_pos[ebx]]).X
 	
 	cmp (COORDENADA PTR[passaros_pos[ebx]]).X, -4
 	je SKIP_DESENHAR
 	
-	call desenharPassaro
+	push 1
+	call manipularPassaro
 
 SKIP_DESENHAR:
 	add ebx, 2
@@ -732,7 +707,8 @@ telaPrincipal proc uses eax edx ebx
 	mov (COORDENADA PTR [passaros_pos[0]]).Y, 5
 	inc passaros_count
 	mov ebx, 0
-	call desenharPassaro
+	push 1
+	call manipularPassaro
 
 LP_0:
 	mov eax, 50
