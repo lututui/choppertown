@@ -206,7 +206,27 @@ J_EXIT:
 	ret 4
 manipularPassaro endp
 
-desenharPredio proc uses ebx edx eax ecx
+manipularPredio proc
+	push ebp
+	mov ebp, esp
+	
+	sub esp, 8
+	cmp DWORD PTR [ebp + 8], 0
+	je LIMPAR
+	
+	mov [ebp - 4], offset predio_desenho
+	mov DWORD PTR [ebp - 8], PREDIO_LARGURA + 1
+	jmp CONTINUE2
+	
+LIMPAR:
+	mov [ebp - 4], offset predio_clear
+	mov DWORD PTR [ebp - 8], 0
+
+CONTINUE2:
+	push edx
+	push eax
+	push ecx
+
 	mov dl, predios_pos[ebx]
 	
 	cmp dl, 0
@@ -250,69 +270,23 @@ LP_0:
 	call Gotoxy
 	
 	push eax
-	push offset predio_desenho
+	push [ebp - 4]
 	call manipularSegmentoPredio
 	
 	inc dh
-	add eax, PREDIO_LARGURA + 1
+	add eax, DWORD PTR [ebp - 8]
 	loop LP_0
 
 J_EXIT:
-	ret
-desenharPredio endp
-
-apagarPredio proc uses edx ecx ebx
-	mov dl, predios_pos[ebx]
+	pop ecx
+	pop eax
+	pop edx
 	
-	cmp dl, 0
-	jle LEAVING_SCREEN_LEFT
+	mov esp, ebp
+	pop ebp
 	
-	mov predios_off, 0
-	
-	cmp dl, 120
-	jge J_EXIT
-	
-	cmp dl, 115
-	jge ENTERING_SCREEN_RIGHT
-	
-	mov predios_len, PREDIO_LARGURA
-	
-	jmp CONTINUE
-	
-LEAVING_SCREEN_LEFT:
-	not dl
-	add dl, 2
-	mov predios_off, dl
-	mov dl, 1
-	
-	mov predios_len, PREDIO_LARGURA
-	
-	jmp CONTINUE
-
-ENTERING_SCREEN_RIGHT:
-	mov predios_len, 119
-	sub predios_len, dl
-	
-CONTINUE:
-	cmp predios_len, 0
-	je J_EXIT
-
-	mov dh, LINHAS - 1 - PREDIO_ALTURA
-	mov ecx, PREDIO_ALTURA
-
-LP_0:
-	call Gotoxy
-	
-	push 0
-	push offset predio_clear
-	call manipularSegmentoPredio
-	
-	inc dh
-	loop LP_0
-
-J_EXIT:
-	ret
-apagarPredio endp
+	ret 4
+manipularPredio endp
 
 colisaoPredios proc
 	cmp heli_pos, 14
@@ -396,13 +370,15 @@ moverPredios proc uses ecx ebx esi edi
 	
 	mov ebx, 0
 LP_0:
-	call apagarPredio
+	push 0
+	call manipularPredio
 	dec predios_pos[ebx]
 	
 	cmp predios_pos[ebx], -4
 	je SKIP_DESENHAR
 	
-	call desenharPredio
+	push 1
+	call manipularPredio
 	
 SKIP_DESENHAR:
 	inc ebx
@@ -701,7 +677,8 @@ telaPrincipal proc uses eax edx ebx
 	mov predios_pos[0], 16
 	inc predios_count
 	mov ebx, 0
-	call desenharPredio
+	push 1
+	call manipularPredio
 	
 	mov (COORDENADA PTR [passaros_pos[0]]).X, 125
 	mov (COORDENADA PTR [passaros_pos[0]]).Y, 5
