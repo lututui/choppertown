@@ -96,8 +96,8 @@ manipularSegmentoPredio proc
 	add esi, eax
 	
 	mov edi, offset predios_write_buffer
-	
 	rep movsb
+	
 	mov BYTE PTR [edi], 0
 	mov edx, offset predios_write_buffer
 	call WriteString
@@ -112,11 +112,17 @@ manipularSegmentoPredio proc
 	ret 8
 manipularSegmentoPredio endp
 
-desenharSegmentoPassaro proc uses ecx esi edi edx
-	movzx ecx, passaros_len
+manipularSegmentoPassaro proc
+	push ebp
+	mov ebp, esp
 	
+	push ecx
+	push esi
+	push edx
+	
+	movzx ecx, passaros_len
 	movzx esi, passaros_off
-	add esi, offset passaro_desenho
+	add esi, [ebp + 8]
 	
 	mov edi, offset passaros_write_buffer
 	rep movsb
@@ -125,25 +131,15 @@ desenharSegmentoPassaro proc uses ecx esi edi edx
 	mov edx, offset passaros_write_buffer
 	call WriteString
 	
-	ret	
-desenharSegmentoPassaro endp
-
-apagarSegmentoPassaro proc uses ecx esi edi edx
-	movzx ecx, passaros_len
+	pop edx
+	pop esi
+	pop ecx
 	
-	movzx esi, passaros_off
-	add esi, offset passaro_clear
+	mov esp, ebp
+	pop ebp
 	
-	mov edi, offset passaros_write_buffer
-	
-	rep movsb
-	
-	mov BYTE PTR [edi], 0
-	mov edx, offset passaros_write_buffer
-	call WriteString
-	
-	ret
-apagarSegmentoPassaro endp
+	ret 4
+manipularSegmentoPassaro endp
 
 desenharPassaro proc uses edx ebx
 	mov dl, (COORDENADA PTR [passaros_pos[ebx]]).X
@@ -183,7 +179,9 @@ CONTINUE:
 	je J_EXIT
 	
 	call Gotoxy
-	call desenharSegmentoPassaro
+	
+	push offset passaro_desenho
+	call manipularSegmentoPassaro
 
 J_EXIT:
 	ret
@@ -227,7 +225,9 @@ CONTINUE:
 	je J_EXIT
 	
 	call Gotoxy
-	call apagarSegmentoPassaro
+	
+	push offset passaro_clear
+	call manipularSegmentoPassaro
 
 J_EXIT:
 	ret
