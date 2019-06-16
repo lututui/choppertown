@@ -288,36 +288,39 @@ J_EXIT:
 	ret 4
 manipularPredio endp
 
-colisaoPredios proc
-	cmp heli_pos, 14
+colisaoPredios proc uses ax
+	mov al, heli_pos
+	mov ah, predios_pos[0]
+	
+	cmp al, 14
 	jl J_EXIT
 	
-	cmp heli_pos, 16
+	cmp al, 16
 	jge TOPO_COLIDE
 	
-	cmp heli_pos, 15
+	cmp al, 15
 	je MEIO_COLIDE
 	
 	jmp BAIXO_COLIDE
 
 TOPO_COLIDE:
-	cmp predios_pos[0], 17
+	cmp ah, 17
 	jge J_EXIT
-	cmp predios_pos[0], 1
+	cmp ah, 1
 	jle J_EXIT
 	jmp COLIDE
 
 MEIO_COLIDE:
-	cmp predios_pos[0], 15
+	cmp ah, 15
 	jge J_EXIT
-	cmp predios_pos[0], -2
+	cmp ah, -2
 	jle J_EXIT
 	jmp COLIDE
 	
 BAIXO_COLIDE:
-	cmp predios_pos[0], 14
+	cmp ah, 14
 	jge J_EXIT
-	cmp predios_pos[0], 4
+	cmp ah, 4
 	jle J_EXIT
 
 COLIDE:
@@ -326,6 +329,51 @@ COLIDE:
 J_EXIT:
 	ret
 colisaoPredios endp
+
+colisaoPassaros proc uses dx ax
+	mov dl, (COORDENADA PTR[passaros_pos[0]]).Y
+	mov dh, (COORDENADA PTR[passaros_pos[0]]).X
+	mov al, heli_pos
+	
+	cmp al, dl
+	je TOPO_COLIDE
+	dec dl
+	
+	cmp al, dl
+	je MEIO_COLIDE
+	dec dl
+	
+	cmp al, dl
+	je BAIXO_COLIDE
+	
+	jmp J_EXIT
+
+TOPO_COLIDE:
+	cmp dh, 17
+	jge J_EXIT
+	cmp dh, 1
+	jle J_EXIT
+	jmp COLIDE
+
+MEIO_COLIDE:
+	cmp dh, 15
+	jge J_EXIT
+	cmp dh, -2
+	jle J_EXIT
+	jmp COLIDE
+	
+BAIXO_COLIDE:
+	cmp dh, 14
+	jge J_EXIT
+	cmp dh, 4
+	jle J_EXIT
+
+COLIDE:
+	mov colidiu, 1
+	
+J_EXIT:
+	ret
+colisaoPassaros endp
 
 moverPassaros proc
 	movzx ecx, passaros_count
@@ -725,6 +773,7 @@ NO_KEY:
 	call moverPredios
 	call colisaoPredios
 	call moverPassaros
+	call colisaoPassaros
 	
 	pop timer
 	
