@@ -972,7 +972,22 @@ telaInicial endp
 ;;; FIM: Procedimentos controladores de tela
 ;; FIM: PROCEDIMENTOS
 
+esconderCursor proc
+	local outputhandle:DWORD, cursorinfo:CONSOLE_CURSOR_INFO
+
+	invoke GetStdHandle, STD_OUTPUT_HANDLE
+	mov outputhandle, eax
+	
+	invoke GetConsoleCursorInfo, outputhandle, addr cursorinfo
+	mov (CONSOLE_CURSOR_INFO PTR[cursorinfo]).bVisible, 0
+	
+	invoke SetConsoleCursorInfo, outputhandle, addr cursorinfo
+	
+	ret
+esconderCursor endp
+
 main proc
+	call esconderCursor
 LP_0:
 	cmp tela_atual, 0
 	je PRINCIPAL
