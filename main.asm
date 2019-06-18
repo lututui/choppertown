@@ -50,6 +50,8 @@ passaro_clear BYTE 5 DUP (" "), 0
 
 colidiu BYTE 0
 
+spawn_cooldown BYTE 0
+
 timer DWORD ?
 
 .code
@@ -248,8 +250,8 @@ LEAVING_SCREEN_LEFT:
 	not dl
 	add dl, 2
 	mov predios_off, dl
-	mov dl, 1
 	
+	mov dl, 1
 	mov predios_len, PREDIO_LARGURA
 
 	jmp CONTINUE
@@ -288,12 +290,19 @@ J_EXIT:
 	ret 4
 manipularPredio endp
 
-colisaoPredios proc uses ax
+colisaoPredios proc uses ax ecx ebx
+	movzx ecx, predios_count
+	mov ebx, 0
+	
+	cmp ecx, 0
+	je J_EXIT
+	
 	mov al, heli_pos
-	mov ah, predios_pos[0]
+LP_0:
+	mov ah, predios_pos[ebx]
 	
 	cmp al, 14
-	jl J_EXIT
+	jl CONTINUE
 	
 	cmp al, 16
 	jge TOPO_COLIDE
@@ -305,34 +314,47 @@ colisaoPredios proc uses ax
 
 TOPO_COLIDE:
 	cmp ah, 17
-	jge J_EXIT
+	jge CONTINUE
 	cmp ah, 1
-	jle J_EXIT
+	jle CONTINUE
 	jmp COLIDE
 
 MEIO_COLIDE:
 	cmp ah, 15
-	jge J_EXIT
+	jge CONTINUE
 	cmp ah, -2
-	jle J_EXIT
+	jle CONTINUE
 	jmp COLIDE
 	
 BAIXO_COLIDE:
 	cmp ah, 14
-	jge J_EXIT
+	jge CONTINUE
 	cmp ah, 4
-	jle J_EXIT
+	jle CONTINUE
+	jmp COLIDE
 
 COLIDE:
 	mov colidiu, 1
+	jmp J_EXIT
+	
+CONTINUE:
+	inc ebx
+	loop LP_0
 	
 J_EXIT:
 	ret
 colisaoPredios endp
 
-colisaoPassaros proc uses dx ax
-	mov dl, (COORDENADA PTR[passaros_pos[0]]).Y
-	mov dh, (COORDENADA PTR[passaros_pos[0]]).X
+colisaoPassaros proc uses dx ax ecx ebx
+	movzx ecx, passaros_count
+	mov ebx, 0
+
+	cmp ecx, 0
+	je J_EXIT
+
+LP_0:
+	mov dl, (COORDENADA PTR[passaros_pos[ebx]]).Y
+	mov dh, (COORDENADA PTR[passaros_pos[ebx]]).X
 	mov al, heli_pos
 	
 	cmp al, dl
@@ -346,30 +368,36 @@ colisaoPassaros proc uses dx ax
 	cmp al, dl
 	je BAIXO_COLIDE
 	
-	jmp J_EXIT
+	jmp CONTINUE
 
 TOPO_COLIDE:
 	cmp dh, 17
-	jge J_EXIT
+	jge CONTINUE
 	cmp dh, 1
-	jle J_EXIT
+	jle CONTINUE
 	jmp COLIDE
 
 MEIO_COLIDE:
 	cmp dh, 15
-	jge J_EXIT
+	jge CONTINUE
 	cmp dh, -2
-	jle J_EXIT
+	jle CONTINUE
 	jmp COLIDE
 	
 BAIXO_COLIDE:
 	cmp dh, 14
-	jge J_EXIT
+	jge CONTINUE
 	cmp dh, 4
-	jle J_EXIT
+	jle CONTINUE
 
 COLIDE:
 	mov colidiu, 1
+	jmp J_EXIT
+	
+CONTINUE:
+	add ebx, 2
+	loop LP_0
+	
 	
 J_EXIT:
 	ret
@@ -445,6 +473,67 @@ SKIP_DESENHAR:
 J_EXIT:
 	ret
 moverPredios endp
+
+spawn proc uses eax
+	cmp spawn_cooldown, 0
+	je SORTEAR_SPAWN
+	
+	dec spawn_cooldown
+	jmp J_EXIT
+
+SORTEAR_SPAWN:
+	call Random32
+	cmp eax, 07FFFFFFFh
+	jb SPAWN_PREDIO
+	jmp SPAWN_PASSARO
+
+SPAWN_PREDIO:
+	call spawnPredio
+	jmp J_EXIT
+
+SPAWN_PASSARO:
+	call spawnPassaro
+
+J_EXIT:
+	ret
+spawn endp
+
+spawnPassaro proc uses ebx eax
+	mov eax, 3
+	call RandomRange
+	
+	mov spawn_cooldown, PASSARO_LARGURA + 1
+	add spawn_cooldown, al
+	
+	movzx ebx, passaros_count
+	shl ebx, 1
+	mov (COORDENADA PTR[passaros_pos[ebx]]).X, 125
+	
+	mov eax, 16
+	call RandomRange
+	add eax, 1
+	
+	mov (COORDENADA PTR[passaros_pos[ebx]]).Y, al
+	
+	inc passaros_count
+	
+	ret
+spawnPassaro endp
+
+spawnPredio proc uses ebx eax
+	mov eax, 3
+	call RandomRange
+	
+	mov spawn_cooldown, PREDIO_LARGURA + 1
+	add spawn_cooldown, al
+	
+	movzx ebx, predios_count
+	mov predios_pos[ebx], 125
+	
+	inc predios_count
+	
+	ret
+spawnPredio endp
 
 desenharHelicoptero proc uses edx
 	mov dl, 6
@@ -721,19 +810,6 @@ telaPrincipal proc uses eax edx ebx
 	
 	call GetTickCount
 	mov timer, eax
-	
-	mov predios_pos[0], 16
-	inc predios_count
-	mov ebx, 0
-	push 1
-	call manipularPredio
-	
-	mov (COORDENADA PTR [passaros_pos[0]]).X, 125
-	mov (COORDENADA PTR [passaros_pos[0]]).Y, 5
-	inc passaros_count
-	mov ebx, 0
-	push 1
-	call manipularPassaro
 
 LP_0:
 	mov eax, 50
@@ -771,11 +847,14 @@ NO_KEY:
 	jl LP_0
 	
 	call moverPredios
-	call colisaoPredios
 	call moverPassaros
-	call colisaoPassaros
 	
 	pop timer
+	
+	call colisaoPredios
+	call colisaoPassaros
+	
+	call spawn
 	
 	jmp LP_0	
 
