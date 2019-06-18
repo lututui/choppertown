@@ -301,6 +301,9 @@ colisaoPredios proc uses ax ecx ebx
 LP_0:
 	mov ah, predios_pos[ebx]
 	
+	cmp ah, 17
+	jge J_EXIT
+	
 	cmp al, 14
 	jl CONTINUE
 	
@@ -355,6 +358,10 @@ colisaoPassaros proc uses dx ax ecx ebx
 LP_0:
 	mov dl, (COORDENADA PTR[passaros_pos[ebx]]).Y
 	mov dh, (COORDENADA PTR[passaros_pos[ebx]]).X
+	
+	cmp dh, 17
+	jge J_EXIT
+	
 	mov al, heli_pos
 	
 	cmp al, dl
@@ -808,11 +815,11 @@ telaPrincipal proc uses eax edx ebx
 	call desenharTelaBase
 	call desenharHelicoptero
 	
-	call GetTickCount
+	call GetMseconds
 	mov timer, eax
 
 LP_0:
-	mov eax, 50
+	mov eax, 10
 	call Delay
 
 	call ReadKey
@@ -840,10 +847,10 @@ NO_KEY:
 	cmp colidiu, 1
 	je LP_0
 	
-	call GetTickCount
+	call GetMseconds
 	push eax
 	sub eax, timer
-	cmp eax, 100
+	cmp eax, 25
 	jl LP_0
 	
 	call moverPredios
@@ -867,6 +874,7 @@ TECLA_UP:
 	jmp NO_KEY
 
 TECLA_ESC:
+	mov colidiu, 0
 	mov tela_atual, 3
 	ret
 telaPrincipal endp
