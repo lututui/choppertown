@@ -44,6 +44,9 @@ passaros_count BYTE 0
 passaro_desenho BYTE "/^v^", 5Ch, 0
 passaro_clear BYTE 5 DUP (" "), 0
 
+pontos DWORD 0
+ciclos DWORD 0
+
 colidiu BYTE 0
 
 spawn_cooldown BYTE 0
@@ -541,6 +544,24 @@ apagarHelicoptero endp
 ;;; Procedimentos que desenham
 ;;;
 
+desenharPontuacao proc uses eax
+	mGotoxy 110, 1
+	mWrite "PONTUACAO"
+	
+	mGotoxy 110, 2
+	cmp pontos, 0
+	jl ZERO
+	mov eax, pontos
+	jmp CONTINUE
+
+ZERO:
+	mov eax, 0
+
+CONTINUE:
+	call WriteDec
+	
+	ret
+desenharPontuacao endp
 
 ; desenharTelaBase edx, ecx
 ; Escreve na tela, a partir de (0,0), tela_base
@@ -765,12 +786,24 @@ decHelicoptero endp
 ;;; Procedimentos controladores de tela
 ;;;
 
+resetarJogo proc
+	mov colidiu, 0
+	mov tela_atual, 3
+	mov heli_pos, 3
+	mov predios_count, 0
+	mov passaros_count, 0
+	mov pontos, -10
+	
+	ret
+resetarJogo endp
 
 ; telaPrincipal eax edx
 ; Controla a tela de jogo
 telaPrincipal proc uses eax edx ebx
 local last_moved:DWORD, now:DWORD
+	call resetarJogo
 	call desenharTelaBase
+	call desenharPontuacao
 	call desenharHelicoptero
 	
 	call GetMseconds
@@ -822,6 +855,14 @@ NO_KEY:
 	call colisaoPredios
 	call colisaoPassaros
 	
+	call desenharPontuacao
+	inc ciclos
+	cmp ciclos, 10
+	jl CONTINUE
+	mov ciclos, 0
+	inc pontos
+
+CONTINUE:
 	call spawn
 	
 	jmp LP_0	
@@ -835,8 +876,6 @@ TECLA_UP:
 	jmp NO_KEY
 
 TECLA_ESC:
-	mov colidiu, 0
-	mov tela_atual, 3
 	ret
 telaPrincipal endp
 
