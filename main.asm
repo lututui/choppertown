@@ -33,7 +33,6 @@ predios_pos BYTE COLUNAS / 3 DUP(0FFh)
 predios_count BYTE 0
 predios_off BYTE 0
 predios_len BYTE 0
-predios_write_buffer BYTE 6 DUP(?)
 predio_desenho BYTE " ___ ", 0, "| = |", 0, "|   |", 0, "| | |", 0,
 					"|   |", 0, "| | |", 0, "|   |", 0, "| | |", 0,
 					"| | |", 0, "|   |", 0, "| | |", 0, "| | |", 0,
@@ -42,17 +41,12 @@ predio_clear BYTE 5 DUP (" "), 0
 
 passaros_pos COORDENADA COLUNAS / 3 DUP(<>)
 passaros_count BYTE 0
-passaros_off BYTE 0
-passaros_len BYTE 0
-passaros_write_buffer BYTE 6 DUP(?)
 passaro_desenho BYTE "/^v^", 5Ch, 0
 passaro_clear BYTE 5 DUP (" "), 0
 
 colidiu BYTE 0
 
 spawn_cooldown BYTE 0
-
-timer DWORD ?
 
 .code
 
@@ -80,16 +74,13 @@ endm
 ;;
 
 ;----------------------------------------------------
-manipularSegmentoPredio proc
+manipularSegmentoPredio proc uses ecx eax edx
 ; Desenha ou apaga um segmento do predio
+; Recebe:
+;		Endereço de predio_desenho ou de predio_clear
+;		Qual a linha de predio_desenho está sendo manipulada
 ;----------------------------------------------------
-	push ebp
-	mov ebp, esp
-	
-	push ecx
-	push eax
-	push edx
-	
+local write_buffer[6]:BYTE	
 	movzx ecx, predios_len
 	
 	mov esi, [ebp + 8]
@@ -97,58 +88,39 @@ manipularSegmentoPredio proc
 	movzx eax, predios_off
 	add esi, eax
 	
-	mov edi, offset predios_write_buffer
+	lea edi, write_buffer
 	rep movsb
 	
 	mov BYTE PTR [edi], 0
-	mov edx, offset predios_write_buffer
+	lea edx, write_buffer
 	call WriteString
-	
-	pop edx
-	pop eax
-	pop ecx
-	
-	mov esp, ebp
-	pop ebp
-	
+		
 	ret 8
 manipularSegmentoPredio endp
 
-manipularSegmentoPassaro proc
-	push ebp
-	mov ebp, esp
+;----------------------------------------------------
+manipularSegmentoPassaro proc uses ecx edx
+; Desenha ou apaga um segmento do passaro
+; Recebe:
+;		Endereço de passaro_desenho ou passaro_clear
+;----------------------------------------------------
+local write_buffer[6]:BYTE	
+	mov ecx, [ebp + 12]
+	mov esi, [ebp + 8]
+	add esi, [ebp + 16]
 	
-	push ecx
-	push esi
-	push edx
-	
-	movzx ecx, passaros_len
-	movzx esi, passaros_off
-	add esi, [ebp + 8]
-	
-	mov edi, offset passaros_write_buffer
+	lea edi, write_buffer
 	rep movsb
 	
 	mov BYTE PTR [edi], 0
-	mov edx, offset passaros_write_buffer
+	lea edx, write_buffer
 	call WriteString
-	
-	pop edx
-	pop esi
-	pop ecx
-	
-	mov esp, ebp
-	pop ebp
-	
+
 	ret 4
 manipularSegmentoPassaro endp
 
-manipularPassaro proc
-	push ebp
-	mov ebp, esp
-	
-	push edx
-	
+manipularPassaro proc uses edx eax
+local passaros_off:BYTE, passaros_len:BYTE	
 	mov dl, (COORDENADA PTR [passaros_pos[ebx]]).X
 	mov dh, (COORDENADA PTR [passaros_pos[ebx]]).Y
 	
@@ -197,38 +169,30 @@ APAGAR:
 	push offset passaro_clear
 
 CONTINUE2:
+	movzx eax, passaros_len
+	push eax
+	movzx eax, passaros_off
+	push eax
 	call manipularSegmentoPassaro
 
-J_EXIT:
-	pop edx
-	
-	mov esp, ebp
-	pop ebp
-	
+J_EXIT:	
 	ret 4
 manipularPassaro endp
 
-manipularPredio proc
-	push ebp
-	mov ebp, esp
-	
-	sub esp, 8
+manipularPredio proc uses edx eax ecx
+local desenho_addr:DWORD, offset_gl:DWORD
 	cmp DWORD PTR [ebp + 8], 0
 	je LIMPAR
 	
-	mov [ebp - 4], offset predio_desenho
-	mov DWORD PTR [ebp - 8], PREDIO_LARGURA + 1
+	mov desenho_addr, offset predio_desenho
+	mov DWORD PTR offset_gl, PREDIO_LARGURA + 1
 	jmp CONTINUE2
 	
 LIMPAR:
-	mov [ebp - 4], offset predio_clear
-	mov DWORD PTR [ebp - 8], 0
+	mov desenho_addr, offset predio_clear
+	mov DWORD PTR offset_gl, 0
 
 CONTINUE2:
-	push edx
-	push eax
-	push ecx
-
 	mov dl, predios_pos[ebx]
 	
 	cmp dl, 0
@@ -272,21 +236,14 @@ LP_0:
 	call Gotoxy
 	
 	push eax
-	push [ebp - 4]
+	push desenho_addr
 	call manipularSegmentoPredio
 	
 	inc dh
-	add eax, DWORD PTR [ebp - 8]
+	add eax, offset_gl
 	loop LP_0
 
-J_EXIT:
-	pop ecx
-	pop eax
-	pop edx
-	
-	mov esp, ebp
-	pop ebp
-	
+J_EXIT:	
 	ret 4
 manipularPredio endp
 
@@ -490,7 +447,7 @@ spawn proc uses eax
 
 SORTEAR_SPAWN:
 	call Random32
-	cmp eax, 07FFFFFFFh
+	cmp eax, 7FFFFFFFh
 	jb SPAWN_PREDIO
 	jmp SPAWN_PASSARO
 
@@ -812,11 +769,12 @@ decHelicoptero endp
 ; telaPrincipal eax edx
 ; Controla a tela de jogo
 telaPrincipal proc uses eax edx ebx
+local last_moved:DWORD, now:DWORD
 	call desenharTelaBase
 	call desenharHelicoptero
 	
 	call GetMseconds
-	mov timer, eax
+	mov last_moved, eax
 
 LP_0:
 	mov eax, 10
@@ -848,15 +806,18 @@ NO_KEY:
 	je LP_0
 	
 	call GetMseconds
-	push eax
-	sub eax, timer
-	cmp eax, 25
+	mov now, eax
+	sub eax, last_moved
+	
+	cmp eax, 100
 	jl LP_0
 	
 	call moverPredios
 	call moverPassaros
 	
-	pop timer
+	lea esi, now
+	lea edi, last_moved
+	movsd
 	
 	call colisaoPredios
 	call colisaoPassaros
