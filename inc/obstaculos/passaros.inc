@@ -1,0 +1,6 @@
+manipularSegmentoPassaro PROTO
+manipularPassaro PROTO
+colisaoPassaros PROTO
+moverPassaros PROTO
+spawnPassaro PROTO
+resetarPassaros PROTO

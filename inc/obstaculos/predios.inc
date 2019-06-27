@@ -1,0 +1,6 @@
+manipularSegmentoPredio PROTO
+manipularPredio PROTO
+colisaoPredios PROTO
+moverPredios PROTO
+spawnPredio PROTO
+resetarPredios PROTO

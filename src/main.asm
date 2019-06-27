@@ -1,24 +1,17 @@
-INCLUDE Irvine32.inc
-INCLUDE macros.inc
+include Irvine32.inc
+include macros.inc
 
-.data
-LINHAS = 30
-COLUNAS = 120
+include inc\obstaculos\passaros.inc
+include inc\obstaculos\predios.inc
+include inc\util.inc
 
 SELETOR_OFFSET = 12
 SELETOR_STEP = 2
 
-PREDIO_ALTURA = 13
-PREDIO_LARGURA = 5
-
-PASSARO_LARGURA = 5
-
-COORDENADA STRUCT
-	X BYTE 0FFh
-	Y BYTE 0FFh
-COORDENADA ENDS
-
-
+.data
+heli_pos BYTE 3
+colidiu BYTE 0
+spawn_cooldown BYTE 0
 
 opcao_selecionada BYTE 0
 
@@ -27,29 +20,8 @@ tela_base BYTE 201, COLUNAS - 2 DUP(205), 187, 0,
 			LINHAS - 2 DUP(186, COLUNAS - 2 DUP(" "), 186, 0),
 			200, COLUNAS - 2 DUP(205), 188, 0
 
-heli_pos BYTE 3
-
-predios_pos BYTE COLUNAS / 3 DUP(0FFh)
-predios_count BYTE 0
-predios_off BYTE 0
-predios_len BYTE 0
-predio_desenho BYTE " ___ ", 0, "| = |", 0, "|   |", 0, "| | |", 0,
-					"|   |", 0, "| | |", 0, "|   |", 0, "| | |", 0,
-					"| | |", 0, "|   |", 0, "| | |", 0, "| | |", 0,
-					"| | |", 0
-predio_clear BYTE 5 DUP (" "), 0
-
-passaros_pos COORDENADA COLUNAS / 3 DUP(<>)
-passaros_count BYTE 0
-passaro_desenho BYTE "/^v^", 5Ch, 0
-passaro_clear BYTE 5 DUP (" "), 0
-
 pontos DWORD 0
 ciclos DWORD 0
-
-colidiu BYTE 0
-
-spawn_cooldown BYTE 0
 
 .code
 
@@ -76,371 +48,6 @@ endm
 ;; PROCEDIMENTOS
 ;;
 
-;----------------------------------------------------
-manipularSegmentoPredio proc uses ecx eax edx
-; Desenha ou apaga um segmento do predio
-; Recebe:
-;		Endereço de predio_desenho ou de predio_clear
-;		Qual a linha de predio_desenho está sendo manipulada
-;----------------------------------------------------
-local write_buffer[6]:BYTE	
-	movzx ecx, predios_len
-	
-	mov esi, [ebp + 8]
-	add esi, [ebp + 12]
-	movzx eax, predios_off
-	add esi, eax
-	
-	lea edi, write_buffer
-	rep movsb
-	
-	mov BYTE PTR [edi], 0
-	lea edx, write_buffer
-	call WriteString
-		
-	ret 8
-manipularSegmentoPredio endp
-
-;----------------------------------------------------
-manipularSegmentoPassaro proc uses ecx edx
-; Desenha ou apaga um segmento do passaro
-; Recebe:
-;		Endereço de passaro_desenho ou passaro_clear
-;----------------------------------------------------
-local write_buffer[6]:BYTE	
-	mov ecx, [ebp + 12]
-	mov esi, [ebp + 8]
-	add esi, [ebp + 16]
-	
-	lea edi, write_buffer
-	rep movsb
-	
-	mov BYTE PTR [edi], 0
-	lea edx, write_buffer
-	call WriteString
-
-	ret 4
-manipularSegmentoPassaro endp
-
-manipularPassaro proc uses edx eax
-local passaros_off:BYTE, passaros_len:BYTE	
-	mov dl, (COORDENADA PTR [passaros_pos[ebx]]).X
-	mov dh, (COORDENADA PTR [passaros_pos[ebx]]).Y
-	
-	cmp dl, 0
-	jle LEAVING_SCREEN_LEFT
-	
-	mov passaros_off, 0
-	
-	cmp dl, 120
-	jge J_EXIT
-	
-	cmp dl, 115
-	jge ENTERING_SCREEN_RIGHT
-	
-	mov passaros_len, PASSARO_LARGURA
-	
-	jmp CONTINUE
-
-LEAVING_SCREEN_LEFT:
-	not dl
-	add dl, 2
-	mov passaros_off, dl
-	
-	mov dl, 1
-	mov passaros_len, PASSARO_LARGURA
-	
-	jmp CONTINUE
-	
-ENTERING_SCREEN_RIGHT:
-	mov passaros_len, 119
-	sub passaros_len, dl
-
-CONTINUE:
-	cmp passaros_len, 0
-	je J_EXIT
-	
-	call Gotoxy
-	
-	cmp DWORD PTR[ebp + 8], 0
-	je APAGAR
-	
-	push offset passaro_desenho
-	jmp CONTINUE2
-
-APAGAR:
-	push offset passaro_clear
-
-CONTINUE2:
-	movzx eax, passaros_len
-	push eax
-	movzx eax, passaros_off
-	push eax
-	call manipularSegmentoPassaro
-
-J_EXIT:	
-	ret 4
-manipularPassaro endp
-
-manipularPredio proc uses edx eax ecx
-local desenho_addr:DWORD, offset_gl:DWORD
-	cmp DWORD PTR [ebp + 8], 0
-	je LIMPAR
-	
-	mov desenho_addr, offset predio_desenho
-	mov DWORD PTR offset_gl, PREDIO_LARGURA + 1
-	jmp CONTINUE2
-	
-LIMPAR:
-	mov desenho_addr, offset predio_clear
-	mov DWORD PTR offset_gl, 0
-
-CONTINUE2:
-	mov dl, predios_pos[ebx]
-	
-	cmp dl, 0
-	jle LEAVING_SCREEN_LEFT
-	
-	mov predios_off, 0
-
-	cmp dl, 120
-	jge J_EXIT
-	
-	cmp dl, 115
-	jge ENTERING_SCREEN_RIGHT
-	
-	mov predios_len, PREDIO_LARGURA
-	
-	jmp CONTINUE
-	
-LEAVING_SCREEN_LEFT:
-	not dl
-	add dl, 2
-	mov predios_off, dl
-	
-	mov dl, 1
-	mov predios_len, PREDIO_LARGURA
-
-	jmp CONTINUE
-
-ENTERING_SCREEN_RIGHT:
-	mov predios_len, 119
-	sub predios_len, dl
-	
-CONTINUE:
-	cmp predios_len, 0
-	je J_EXIT
-	
-	mov dh, LINHAS - 1 - PREDIO_ALTURA
-	mov eax, 0
-	mov ecx, PREDIO_ALTURA
-
-LP_0:
-	call Gotoxy
-	
-	push eax
-	push desenho_addr
-	call manipularSegmentoPredio
-	
-	inc dh
-	add eax, offset_gl
-	loop LP_0
-
-J_EXIT:	
-	ret 4
-manipularPredio endp
-
-colisaoPredios proc uses ax ecx ebx
-	movzx ecx, predios_count
-	mov ebx, 0
-	
-	cmp ecx, 0
-	je J_EXIT
-	
-	mov al, heli_pos
-LP_0:
-	mov ah, predios_pos[ebx]
-	
-	cmp ah, 17
-	jge J_EXIT
-	
-	cmp al, 14
-	jl CONTINUE
-	
-	cmp al, 16
-	jge TOPO_COLIDE
-	
-	cmp al, 15
-	je MEIO_COLIDE
-	
-	jmp BAIXO_COLIDE
-
-TOPO_COLIDE:
-	cmp ah, 17
-	jge CONTINUE
-	cmp ah, 1
-	jle CONTINUE
-	jmp COLIDE
-
-MEIO_COLIDE:
-	cmp ah, 15
-	jge CONTINUE
-	cmp ah, -2
-	jle CONTINUE
-	jmp COLIDE
-	
-BAIXO_COLIDE:
-	cmp ah, 14
-	jge CONTINUE
-	cmp ah, 4
-	jle CONTINUE
-	jmp COLIDE
-
-COLIDE:
-	mov colidiu, 1
-	jmp J_EXIT
-	
-CONTINUE:
-	inc ebx
-	loop LP_0
-	
-J_EXIT:
-	ret
-colisaoPredios endp
-
-colisaoPassaros proc uses dx ax ecx ebx
-	movzx ecx, passaros_count
-	mov ebx, 0
-
-	cmp ecx, 0
-	je J_EXIT
-
-LP_0:
-	mov dl, (COORDENADA PTR[passaros_pos[ebx]]).Y
-	mov dh, (COORDENADA PTR[passaros_pos[ebx]]).X
-	
-	cmp dh, 17
-	jge J_EXIT
-	
-	mov al, heli_pos
-	
-	cmp al, dl
-	je TOPO_COLIDE
-	dec dl
-	
-	cmp al, dl
-	je MEIO_COLIDE
-	dec dl
-	
-	cmp al, dl
-	je BAIXO_COLIDE
-	
-	jmp CONTINUE
-
-TOPO_COLIDE:
-	cmp dh, 17
-	jge CONTINUE
-	cmp dh, 1
-	jle CONTINUE
-	jmp COLIDE
-
-MEIO_COLIDE:
-	cmp dh, 15
-	jge CONTINUE
-	cmp dh, -2
-	jle CONTINUE
-	jmp COLIDE
-	
-BAIXO_COLIDE:
-	cmp dh, 14
-	jge CONTINUE
-	cmp dh, 4
-	jle CONTINUE
-
-COLIDE:
-	mov colidiu, 1
-	jmp J_EXIT
-	
-CONTINUE:
-	add ebx, 2
-	loop LP_0
-	
-	
-J_EXIT:
-	ret
-colisaoPassaros endp
-
-moverPassaros proc
-	movzx ecx, passaros_count
-	cmp ecx, 0
-	je J_EXIT
-	
-	mov ebx, 0
-	
-LP_0:
-	push 0
-	call manipularPassaro
-	dec (COORDENADA PTR[passaros_pos[ebx]]).X
-	
-	cmp (COORDENADA PTR[passaros_pos[ebx]]).X, -4
-	je SKIP_DESENHAR
-	
-	push 1
-	call manipularPassaro
-
-SKIP_DESENHAR:
-	add ebx, 2
-	loop LP_0
-	
-	cmp (COORDENADA PTR[passaros_pos[0]]).X, -4
-	jne J_EXIT
-	
-	movzx ecx, passaros_count
-	dec passaros_count
-	mov edi, offset passaros_pos
-	mov esi, edi
-	add esi, 2
-	rep movsw
-
-J_EXIT:
-	ret
-moverPassaros endp
-
-moverPredios proc uses ecx ebx esi edi
-	movzx ecx, predios_count
-	cmp ecx, 0
-	je J_EXIT
-	
-	mov ebx, 0
-LP_0:
-	push 0
-	call manipularPredio
-	dec predios_pos[ebx]
-	
-	cmp predios_pos[ebx], -4
-	je SKIP_DESENHAR
-	
-	push 1
-	call manipularPredio
-	
-SKIP_DESENHAR:
-	inc ebx
-	loop LP_0
-
-	cmp predios_pos[0], -4
-	jne J_EXIT
-	
-	movzx ecx, predios_count
-	dec predios_count
-	mov edi, OFFSET predios_pos
-	mov esi, edi
-	inc esi
-	rep movsb
-
-J_EXIT:
-	ret
-moverPredios endp
-
 spawn proc uses eax
 	cmp spawn_cooldown, 0
 	je SORTEAR_SPAWN
@@ -451,6 +58,7 @@ spawn proc uses eax
 SORTEAR_SPAWN:
 	call Random32
 	cmp eax, 7FFFFFFFh
+	push offset spawn_cooldown
 	jb SPAWN_PREDIO
 	jmp SPAWN_PASSARO
 
@@ -464,43 +72,6 @@ SPAWN_PASSARO:
 J_EXIT:
 	ret
 spawn endp
-
-spawnPassaro proc uses ebx eax
-	mov eax, 3
-	call RandomRange
-	
-	mov spawn_cooldown, PASSARO_LARGURA + 1
-	add spawn_cooldown, al
-	
-	movzx ebx, passaros_count
-	shl ebx, 1
-	mov (COORDENADA PTR[passaros_pos[ebx]]).X, 125
-	
-	mov eax, 16
-	call RandomRange
-	add eax, 1
-	
-	mov (COORDENADA PTR[passaros_pos[ebx]]).Y, al
-	
-	inc passaros_count
-	
-	ret
-spawnPassaro endp
-
-spawnPredio proc uses ebx eax
-	mov eax, 3
-	call RandomRange
-	
-	mov spawn_cooldown, PREDIO_LARGURA + 1
-	add spawn_cooldown, al
-	
-	movzx ebx, predios_count
-	mov predios_pos[ebx], 125
-	
-	inc predios_count
-	
-	ret
-spawnPredio endp
 
 desenharHelicoptero proc uses edx
 	mov dl, 6
@@ -790,9 +361,10 @@ resetarJogo proc
 	mov colidiu, 0
 	mov tela_atual, 3
 	mov heli_pos, 3
-	mov predios_count, 0
-	mov passaros_count, 0
 	mov pontos, -10
+	
+	call resetarPredios
+	call resetarPassaros
 	
 	ret
 resetarJogo endp
@@ -852,7 +424,14 @@ NO_KEY:
 	lea edi, last_moved
 	movsd
 	
+	push offset colidiu
+	movzx eax, heli_pos
+	push eax
 	call colisaoPredios
+	
+	push offset colidiu
+	movzx eax, heli_pos
+	push eax
 	call colisaoPassaros
 	
 	call desenharPontuacao
