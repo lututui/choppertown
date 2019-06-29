@@ -73,7 +73,13 @@ J_EXIT:
 	ret
 spawn endp
 
-desenharHelicoptero proc uses edx
+desenharHelicoptero proc uses edx eax
+	call GetTextColor
+	push eax
+	
+	mov eax, lightRed
+	call SetTextColor
+	
 	mov dl, 6
 	mov dh, heli_pos
 	call Gotoxy
@@ -88,6 +94,9 @@ desenharHelicoptero proc uses edx
 	add dh, 1
 	call Gotoxy
 	mWrite "-'-`-"
+	
+	pop eax
+	call SetTextColor
 	
 	ret
 desenharHelicoptero endp

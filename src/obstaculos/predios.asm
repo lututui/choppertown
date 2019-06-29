@@ -91,6 +91,12 @@ CONTINUE:
 	cmp predios_len, 0
 	je J_EXIT
 	
+	call GetTextColor
+	push eax
+	
+	mov eax, lightGray
+	call SetTextColor
+	
 	mov dh, LINHAS - 1 - PREDIO_ALTURA
 	mov eax, 0
 	mov ecx, PREDIO_ALTURA
@@ -105,6 +111,9 @@ LP_0:
 	inc dh
 	add eax, offset_gl
 	loop LP_0
+	
+	pop eax
+	call SetTextColor
 
 J_EXIT:	
 	ret 4

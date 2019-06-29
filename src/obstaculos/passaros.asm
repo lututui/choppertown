@@ -27,7 +27,17 @@ local write_buffer[6]:BYTE
 	
 	mov BYTE PTR [edi], 0
 	lea edx, write_buffer
+	
+	call GetTextColor
+	push eax
+	
+	mov eax, yellow
+	call SetTextColor
+	
 	call WriteString
+	
+	pop eax
+	call SetTextColor
 
 	ret 4
 manipularSegmentoPassaro endp
