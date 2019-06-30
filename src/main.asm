@@ -5,6 +5,12 @@ include inc\obstaculos\passaros.inc
 include inc\obstaculos\predios.inc
 include inc\util.inc
 
+includelib Winmm.lib
+includelib Kernel32.lib
+
+PlaySound PROTO, pszSound:PTR BYTE, hmod:DWORD, fdwSound:DWORD
+GetModuleFileNameA PROTO, hModule:DWORD, lpFilename:PTR BYTE, nSize:BYTE
+
 SELETOR_OFFSET = 16
 SELETOR_STEP = 2
 
@@ -23,6 +29,12 @@ tela_base BYTE 201, COLUNAS - 2 DUP(205), 187, 0,
 pontos DWORD 0
 ciclos DWORD 0
 freq BYTE 100
+
+SND_FILENAME_SYNC DWORD 00020000h
+SND_FILENAME_ASYNC DWORD 00020001h
+
+GAME_PATH BYTE 256 DUP(?)
+FILE_GAMEOVER BYTE "rsc\game_over.wav", 0
 
 .code
 
@@ -315,6 +327,13 @@ desenharTelaFimDeJogo proc
 	
 	mGotoxy 71, 18
 	mov eax, pontos
+	
+	cmp eax, 0
+	jge WRITE
+	
+	mov eax, 0
+
+WRITE:
 	call WriteDec
 	
 	pop eax
@@ -576,11 +595,28 @@ telaConfiguracao endp
 ; telaPrincipal eax edx
 ; Controla a tela de jogo
 telaPrincipal proc uses eax edx ebx
-local last_moved:DWORD, now:DWORD
+local last_moved:DWORD, now:DWORD, sound_gameover[256]:BYTE
 	call resetarJogo
 	call desenharTelaBase
 	call desenharPontuacao
 	call desenharHelicoptero
+	
+	mov edx, offset GAME_PATH
+	call StrLength
+	
+	mov ecx, eax	
+	lea edi, sound_gameover
+	mov esi, offset GAME_PATH
+	rep movsb
+	
+	mov edx, offset FILE_GAMEOVER
+	call StrLength
+	
+	mov ecx, eax
+	lea esi, offset FILE_GAMEOVER
+	rep movsb
+	
+	mov BYTE PTR [edi], 0
 	
 	call GetMseconds
 	mov last_moved, eax
@@ -650,6 +686,7 @@ CONTINUE:
 	jmp LP_0
 
 FIM_DE_JOGO:
+	invoke PlaySound, addr sound_gameover, 0, SND_FILENAME_SYNC
 	mov tela_atual, 5
 	jmp J_EXIT
 
@@ -666,8 +703,6 @@ TECLA_ESC:
 	jmp J_EXIT
 
 J_EXIT:
-	mov tela_atual, 4
-	
 	ret
 telaPrincipal endp
 
@@ -816,8 +851,28 @@ esconderCursor proc
 	ret
 esconderCursor endp
 
+obterPath proc
+	invoke GetModuleFileNameA, 0, offset GAME_PATH, 255
+
+	lea edi, GAME_PATH
+	add edi, eax
+	dec edi
+
+LP_0:
+	cmp BYTE PTR [edi], 92
+	je J_EXIT
+	
+	mov BYTE PTR [edi], 0
+	dec edi
+	jmp LP_0
+
+J_EXIT:
+	ret
+obterPath endp
+
 main proc
 	call esconderCursor
+	call obterPath
 LP_0:
 	cmp tela_atual, 0
 	je PRINCIPAL
