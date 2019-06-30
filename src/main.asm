@@ -5,7 +5,7 @@ include inc\obstaculos\passaros.inc
 include inc\obstaculos\predios.inc
 include inc\util.inc
 
-SELETOR_OFFSET = 12
+SELETOR_OFFSET = 16
 SELETOR_STEP = 2
 
 .data
@@ -166,29 +166,27 @@ desenharTelaBase endp
 ; Desenha a tela acessável pelo menu "Sobre" no console
 desenharTelaSobre proc
 	call desenharTelaBase
-
-	mGotoxy 53, 5
-	mWrite "CHOPPER TOWN"
+	call desenharTitulo
 	
-	mGotoxy 13, 12
+	mGotoxy 10, 15
 	mWriteChar 175
 	mWrite " Desenvolvido por:"
 
-	mGotoxy 15, 13
+	mGotoxy 12, 17
 	mWriteChar 175
 	mWriteChar 175
 	mWrite " Luiz Arthur Chagas Oliveira - RA: 744344"
 
-	mGotoxy 15, 14
+	mGotoxy 12, 18
 	mWriteChar 175
 	mWriteChar 175
 	mWrite " Vitor Freitas Xavier Soares - RA: 727358"
 
-	mGotoxy 13, 16
+	mGotoxy 10, 20
 	mWriteChar 175
 	mWrite " Desenvolvido para a disciplina de Laboratorio de Arquitetura de Computadores 2, no semestre de 2019-1"
 
-	mGotoxy 13, 18
+	mGotoxy 10, 21
 	mWriteChar 175
 	mWrite " Disciplina ministrada pelo Prof. Dr. Luciano de Oliveira Neris"
 
@@ -199,31 +197,29 @@ desenharTelaSobre endp
 ; Desenha a tela acessável pelo menu "Como Jogar" no console
 desenharTelaInstrucoes proc
 	call desenharTelaBase
-	
-	mGotoxy 53, 5
-	mWrite "CHOPPER TOWN"
-
-	mGotoxy 20, 12
-	mWriteChar 175
-	mWrite " O jogador deve mover o helicoptero, para cima ou para baixo, evitando os obstaculos"
-
-	mGotoxy 20, 14
-	mWriteChar 175
-	mWrite " O jogador deve ir o mais longe possivel"
+	call desenharTitulo
 
 	mGotoxy 20, 16
 	mWriteChar 175
-	mWrite " O jogador ganha pontos de acordo com o tempo de jogo"
+	mWrite " O jogador deve mover o helicoptero, para cima ou para baixo, evitando os obstaculos"
 
 	mGotoxy 20, 18
 	mWriteChar 175
-	mWrite " O joga acaba quando o helicoptero colidir com qualquer obstaculo"
+	mWrite " O jogador deve ir o mais longe possivel"
 
 	mGotoxy 20, 20
 	mWriteChar 175
-	mWrite " Para mover o helicoptero para cima, use W ou a seta para cima"
+	mWrite " O jogador ganha pontos de acordo com o tempo de jogo"
 
 	mGotoxy 20, 22
+	mWriteChar 175
+	mWrite " O joga acaba quando o helicoptero colidir com qualquer obstaculo"
+
+	mGotoxy 20, 24
+	mWriteChar 175
+	mWrite " Para mover o helicoptero para cima, use W ou a seta para cima"
+
+	mGotoxy 20, 26
 	mWriteChar 175
 	mWrite " Para mover o helicoptero para cima, use S ou a seta para baixo"
 	
@@ -234,17 +230,15 @@ desenharTelaInstrucoes endp
 ; Desenha a tela exibida quando o jogo é iniciado
 desenharTelaInicial proc
 	call desenharTelaBase
-	
-	mGotoxy 53, 5
-	mWrite "CHOPPER TOWN"
-
-	mGotoxy 54, 12
-	mWrite "Jogar"
-
-	mGotoxy 54, 14
-	mWrite "Como Jogar"
+	call desenharTitulo
 
 	mGotoxy 54, 16
+	mWrite "Jogar"
+
+	mGotoxy 54, 18
+	mWrite "Como Jogar"
+
+	mGotoxy 54, 20
 	mWrite "Sobre"
 
 	ret
@@ -269,6 +263,36 @@ limparSeletor proc
 	
 	ret
 limparSeletor endp
+
+desenharTitulo proc
+	call GetTextColor
+	push eax
+	
+	mov eax, lightRed
+    call SetTextColor
+	
+	mGotoxy 25, 5
+	mWrite " _____ _                                   _______" 
+	mGotoxy 24, 6
+	mWrite " / ____| |                                 |__   __| "
+	mGotoxy 23, 7
+	mWrite " | |    | |__   ___  _ __  _ __   ___ _ __     | | _____      ___ __  "
+	mGotoxy 23, 8
+	mWrite " | |    | '_ \ / _ \| '_ \| '_ \ / _ \ '__|    | |/ _ \ \ /\ / / '_ \"
+	mGotoxy 23, 9
+	mWrite " | |____| | | | (_) | |_) | |_) |  __/ |       | | (_) \ V  V /| | | |"
+	mGotoxy 25, 10
+	mWrite "\_____|_| |_|\___/| .__/| .__/ \___|_|       |_|\___/ \_/\_/ |_| |_|"
+	mGotoxy 43, 11
+	mWrite "| |   | | "
+	mGotoxy 43, 12
+    mWrite "|_|   |_| "
+	
+	pop eax
+	call SetTextColor
+	
+	ret
+desenharTitulo endp
 
 ;;; FIM: Procedimentos que desenham
 
