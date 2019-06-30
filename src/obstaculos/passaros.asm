@@ -28,16 +28,7 @@ local write_buffer[6]:BYTE
 	mov BYTE PTR [edi], 0
 	lea edx, write_buffer
 	
-	call GetTextColor
-	push eax
-	
-	mov eax, yellow
-	call SetTextColor
-	
 	call WriteString
-	
-	pop eax
-	call SetTextColor
 
 	ret 4
 manipularSegmentoPassaro endp
@@ -185,7 +176,8 @@ moverPassaros proc
 	movzx ecx, passaros_count
 	cmp ecx, 0
 	je J_EXIT
-	
+
+; // Apagar
 	mov ebx, 0
 	
 LP_0:
@@ -193,6 +185,20 @@ LP_0:
 	call manipularPassaro
 	dec (COORDENADA PTR[passaros_pos[ebx]]).X
 	
+	add ebx, 2
+	loop LP_0
+
+; // Desenhar
+	movzx ecx, passaros_count
+	mov ebx, 0
+	
+	call GetTextColor
+	push eax
+	
+	mov eax, yellow
+	call SetTextColor
+
+LP_1:
 	cmp (COORDENADA PTR[passaros_pos[ebx]]).X, -4
 	je SKIP_DESENHAR
 	
@@ -201,7 +207,10 @@ LP_0:
 
 SKIP_DESENHAR:
 	add ebx, 2
-	loop LP_0
+	loop LP_1
+	
+	pop eax
+	call SetTextColor
 	
 	cmp (COORDENADA PTR[passaros_pos[0]]).X, -4
 	jne J_EXIT

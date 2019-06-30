@@ -91,12 +91,6 @@ CONTINUE:
 	cmp predios_len, 0
 	je J_EXIT
 	
-	call GetTextColor
-	push eax
-	
-	mov eax, lightGray
-	call SetTextColor
-	
 	mov dh, LINHAS - 1 - PREDIO_ALTURA
 	mov eax, 0
 	mov ecx, PREDIO_ALTURA
@@ -111,9 +105,6 @@ LP_0:
 	inc dh
 	add eax, offset_gl
 	loop LP_0
-	
-	pop eax
-	call SetTextColor
 
 J_EXIT:	
 	ret 4
@@ -198,11 +189,25 @@ moverPredios proc uses ecx ebx esi edi
 	je J_EXIT
 	
 	mov ebx, 0
+	
 LP_0:
 	push 0
 	call manipularPredio
 	dec predios_pos[ebx]
 	
+	inc ebx
+	loop LP_0
+	
+	movzx ecx, predios_count
+	mov ebx, 0
+	
+	call GetTextColor
+	push eax
+	
+	mov eax, lightGray
+	call SetTextColor
+
+LP_1:
 	cmp predios_pos[ebx], -4
 	je SKIP_DESENHAR
 	
@@ -211,7 +216,10 @@ LP_0:
 	
 SKIP_DESENHAR:
 	inc ebx
-	loop LP_0
+	loop LP_1
+	
+	pop eax
+	call SetTextColor
 
 	cmp predios_pos[0], -4
 	jne J_EXIT
