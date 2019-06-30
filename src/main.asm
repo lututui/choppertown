@@ -269,7 +269,7 @@ desenharTitulo proc
 	push eax
 	
 	mov eax, lightRed
-    call SetTextColor
+	call SetTextColor
 	
 	mGotoxy 25, 5
 	mWrite " _____ _                                   _______" 
@@ -286,13 +286,42 @@ desenharTitulo proc
 	mGotoxy 43, 11
 	mWrite "| |   | | "
 	mGotoxy 43, 12
-    mWrite "|_|   |_| "
+	mWrite "|_|   |_| "
 	
 	pop eax
 	call SetTextColor
 	
 	ret
 desenharTitulo endp
+
+; desenharTelaDeFimDeJogo
+; Desenha a tela do fim de jogo quando o helicoptero colidir com algo
+desenharTelaFimDeJogo proc
+	call desenharTelaBase
+	call desenharTitulo
+	
+	mGotoxy 40, 18
+	mwrite "Sua pontuacao foi de: "
+	
+	call GetTextColor
+	push eax
+	
+	mov eax, lightMagenta
+    call SetTextColor
+	
+	mGotoxy 71, 18
+	mov eax, pontos
+	call WriteDec
+	
+	mGotoxy 10, 22
+	
+	pop eax
+	call SetTextColor
+	
+	mWrite "Para jogar novamente, aperte ESC para voltar ao Menu principal e depois aperte ENTER na opcao jogar"
+	
+	ret
+desenharTelaFimDeJogo endp
 
 ;;; FIM: Procedimentos que desenham
 
