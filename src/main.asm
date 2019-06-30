@@ -38,6 +38,7 @@ SND_FILENAME_LOOP DWORD 00020009h
 GAME_PATH BYTE 256 DUP(?)
 FILE_GAMEOVER BYTE "rsc\game_over.wav", 0
 FILE_MENU BYTE "rsc\menu.wav", 0
+FILE_HELI BYTE "rsc\helicoptero.wav", 0
 
 .code
 
@@ -598,28 +599,23 @@ telaConfiguracao endp
 ; telaPrincipal eax edx
 ; Controla a tela de jogo
 telaPrincipal proc uses eax edx ebx
-local last_moved:DWORD, now:DWORD, sound_gameover[256]:BYTE
+local last_moved:DWORD, now:DWORD, sound_gameover[256]:BYTE, sound_game[256]:BYTE
 	call resetarJogo
 	call desenharTelaBase
 	call desenharPontuacao
 	call desenharHelicoptero
 	
-	mov edx, offset GAME_PATH
-	call StrLength
-	
-	mov ecx, eax	
+	push offset FILE_GAMEOVER
 	lea edi, sound_gameover
-	mov esi, offset GAME_PATH
-	rep movsb
+	push edi
+	call fazerPath
 	
-	mov edx, offset FILE_GAMEOVER
-	call StrLength
+	push offset FILE_HELI
+	lea edi, sound_game
+	push edi
+	call fazerPath
 	
-	mov ecx, eax
-	lea esi, offset FILE_GAMEOVER
-	rep movsb
-	
-	mov BYTE PTR [edi], 0
+	invoke PlaySound, addr sound_game, 0, SND_FILENAME_LOOP
 	
 	call GetMseconds
 	mov last_moved, eax
@@ -689,6 +685,7 @@ CONTINUE:
 	jmp LP_0
 
 FIM_DE_JOGO:
+	invoke PlaySound, 0, 0, SND_ASYNC
 	invoke PlaySound, addr sound_gameover, 0, SND_FILENAME_SYNC
 	mov tela_atual, 5
 	jmp J_EXIT
@@ -873,27 +870,50 @@ J_EXIT:
 	ret
 obterPath endp
 
-main proc
-	local sound_menu[256]:BYTE
-	call esconderCursor
-	call obterPath
+fazerPath proc
+	push ebp
+	mov ebp, esp
+	
+	push edx
+	push ecx
+	push eax
 	
 	mov edx, offset GAME_PATH
 	call StrLength
 	
 	mov ecx, eax	
-	lea edi, sound_menu
+	mov edi, [ebp + 8]
 	mov esi, offset GAME_PATH
 	rep movsb
 	
-	mov edx, offset FILE_MENU
+	mov edx, [ebp + 12]
 	call StrLength
 	
 	mov ecx, eax
-	lea esi, offset FILE_MENU
+	mov esi, [ebp + 12]
 	rep movsb
 	
 	mov BYTE PTR [edi], 0
+	
+	pop eax
+	pop ecx
+	pop edx
+	
+	mov esp, ebp
+	pop ebp
+	
+	ret 8
+fazerPath endp
+
+main proc
+	local sound_menu[256]:BYTE
+	call esconderCursor
+	call obterPath
+	
+	push offset FILE_MENU
+	lea edi, sound_menu
+	push edi
+	call fazerPath
 	
 	invoke Playsound, addr sound_menu, 0, SND_FILENAME_LOOP
 LP_0:
