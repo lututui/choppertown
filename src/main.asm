@@ -313,12 +313,11 @@ desenharTelaFimDeJogo proc
 	mov eax, pontos
 	call WriteDec
 	
-	mGotoxy 10, 22
-	
 	pop eax
 	call SetTextColor
 	
-	mWrite "Para jogar novamente, aperte ESC para voltar ao Menu principal e depois aperte ENTER na opcao jogar"
+	mGotoxy 22, 22
+	mWrite "Para jogar novamente, aperte ENTER. Para voltar ao Menu Principal, aperte ESC"
 	
 	ret
 desenharTelaFimDeJogo endp
@@ -454,7 +453,7 @@ LP_0:
 	je TECLA_ESC
 	
 	cmp colidiu, 1
-	je LP_0
+	je FIM_DE_JOGO
 	
 	cmp dx, VK_DOWN
 	je TECLA_DOWN
@@ -470,7 +469,7 @@ LP_0:
 	
 NO_KEY:
 	cmp colidiu, 1
-	je LP_0
+	je FIM_DE_JOGO
 	
 	call GetMseconds
 	mov now, eax
@@ -505,8 +504,11 @@ NO_KEY:
 
 CONTINUE:
 	call spawn
-	
-	jmp LP_0	
+	jmp LP_0
+
+FIM_DE_JOGO:
+	mov tela_atual, 5
+	jmp J_EXIT
 
 TECLA_DOWN:
 	call incHelicoptero
@@ -517,8 +519,43 @@ TECLA_UP:
 	jmp NO_KEY
 
 TECLA_ESC:
+	mov tela_atual, 5
+	jmp J_EXIT
+
+J_EXIT:
 	ret
 telaPrincipal endp
+
+telaFimDeJogo proc
+	call desenharTelaBase
+	call desenharTelaFimDeJogo
+	
+LP_0:
+	mov eax, 50
+	call Delay
+
+	call ReadKey
+	jz LP_0
+	
+	cmp dx, VK_RETURN
+	je TECLA_ENTER
+	
+	cmp dx, VK_ESCAPE
+	je TECLA_ESC
+	
+	jmp LP_0
+	
+TECLA_ENTER:
+	mov tela_atual, 0
+	jmp J_EXIT
+
+TECLA_ESC:
+	mov tela_atual, 3
+	jmp J_EXIT
+	
+J_EXIT:
+	ret
+telaFimDeJogo endp
 
 
 ; telaInstrucoes eax edx
@@ -649,6 +686,9 @@ LP_0:
 	
 	cmp tela_atual, 3
 	je INICIAL
+	
+	cmp tela_atual, 5
+	je FIM_DE_JOGO
 
 	jmp LP_0
 
@@ -666,6 +706,10 @@ SOBRE:
 
 PRINCIPAL:
 	call telaPrincipal
+	jmp LP_0
+
+FIM_DE_JOGO:
+	call telaFimDeJogo
 	jmp LP_0
 
 	exit
