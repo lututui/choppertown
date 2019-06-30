@@ -30,11 +30,14 @@ pontos DWORD 0
 ciclos DWORD 0
 freq BYTE 100
 
+SND_ASYNC DWORD 1h
 SND_FILENAME_SYNC DWORD 00020000h
 SND_FILENAME_ASYNC DWORD 00020001h
+SND_FILENAME_LOOP DWORD 00020009h
 
 GAME_PATH BYTE 256 DUP(?)
 FILE_GAMEOVER BYTE "rsc\game_over.wav", 0
+FILE_MENU BYTE "rsc\menu.wav", 0
 
 .code
 
@@ -871,8 +874,28 @@ J_EXIT:
 obterPath endp
 
 main proc
+	local sound_menu[256]:BYTE
 	call esconderCursor
 	call obterPath
+	
+	mov edx, offset GAME_PATH
+	call StrLength
+	
+	mov ecx, eax	
+	lea edi, sound_menu
+	mov esi, offset GAME_PATH
+	rep movsb
+	
+	mov edx, offset FILE_MENU
+	call StrLength
+	
+	mov ecx, eax
+	lea esi, offset FILE_MENU
+	rep movsb
+	
+	mov BYTE PTR [edi], 0
+	
+	invoke Playsound, addr sound_menu, 0, SND_FILENAME_LOOP
 LP_0:
 	cmp tela_atual, 0
 	je PRINCIPAL
@@ -907,7 +930,9 @@ SOBRE:
 	jmp LP_0
 
 PRINCIPAL:
+	invoke PlaySound, 0, 0, SND_ASYNC
 	call telaPrincipal
+	invoke Playsound, addr sound_menu, 0, SND_FILENAME_LOOP
 	jmp LP_0
 
 FIM_DE_JOGO:
@@ -919,6 +944,7 @@ CONFIGURAR:
 	jmp LP_0
 
 	exit
+	ret
 main endp
 
 end main
