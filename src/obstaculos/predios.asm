@@ -17,32 +17,74 @@ predio_desenho BYTE " ___ ", 0, "| = |", 0, "|   |", 0, "| | |", 0,
 predio_clear BYTE 5 DUP (" "), 0
 
 .code
-;----------------------------------------------------
-manipularSegmentoPredio proc uses ecx eax edx
-; Desenha ou apaga um segmento do predio
-; Recebe:
-;		Endereço de predio_desenho ou de predio_clear
-;		Qual a linha de predio_desenho está sendo manipulada
-;----------------------------------------------------
-local write_buffer[6]:BYTE	
-	movzx ecx, predios_len
-	
-	mov esi, [ebp + 8]
-	add esi, [ebp + 12]
-	movzx eax, predios_off
-	add esi, eax
-	
-	lea edi, write_buffer
-	rep movsb
-	
-	mov BYTE PTR [edi], 0
-	lea edx, write_buffer
-	call WriteString
-		
-	ret 8
-manipularSegmentoPredio endp
+;------------------------------------------------
+resetarPredios proc
+; Limpar array de predios
+;------------------------------------------------
+	mov predios_count, 0
+	ret
+resetarPredios endp
 
+;------------------------------------------------
+moverPredios proc uses ecx ebx esi edi
+; Move todos os prédios para a esquerda
+;------------------------------------------------
+	movzx ecx, predios_count
+	cmp ecx, 0
+	je J_EXIT
+	
+	mov ebx, 0
+	
+LP_0:
+	push 0
+	call manipularPredio
+	dec predios_pos[ebx]
+	
+	inc ebx
+	loop LP_0
+	
+	movzx ecx, predios_count
+	mov ebx, 0
+	
+	call GetTextColor
+	push eax
+	
+	mov eax, lightGray
+	call SetTextColor
+
+LP_1:
+	cmp predios_pos[ebx], -4
+	je SKIP_DESENHAR
+	
+	push 1
+	call manipularPredio
+	
+SKIP_DESENHAR:
+	inc ebx
+	loop LP_1
+	
+	pop eax
+	call SetTextColor
+
+	cmp predios_pos[0], -4
+	jne J_EXIT
+	
+	movzx ecx, predios_count
+	dec predios_count
+	mov edi, OFFSET predios_pos
+	mov esi, edi
+	inc esi
+	rep movsb
+
+J_EXIT:
+	ret
+moverPredios endp
+
+
+;----------------------------------------------------
 manipularPredio proc uses edx eax ecx
+; Desenha ou apaga um prédio
+;----------------------------------------------------
 local desenho_addr:DWORD, offset_gl:DWORD
 	cmp DWORD PTR [ebp + 8], 0
 	je LIMPAR
@@ -110,7 +152,36 @@ J_EXIT:
 	ret 4
 manipularPredio endp
 
+
+;----------------------------------------------------
+manipularSegmentoPredio proc uses ecx eax edx
+; Desenha ou apaga um segmento do predio
+; Recebe:
+;		Endereço de predio_desenho ou de predio_clear
+;		Qual a linha de predio_desenho está sendo manipulada
+;----------------------------------------------------
+local write_buffer[6]:BYTE	
+	movzx ecx, predios_len
+	
+	mov esi, [ebp + 8]
+	add esi, [ebp + 12]
+	movzx eax, predios_off
+	add esi, eax
+	
+	lea edi, write_buffer
+	rep movsb
+	
+	mov BYTE PTR [edi], 0
+	lea edx, write_buffer
+	call WriteString
+		
+	ret 8
+manipularSegmentoPredio endp
+
+;------------------------------------------------
 colisaoPredios proc
+; Calcula a colisão dos predios com o helicoptero
+;------------------------------------------------
 	push ebp
 	mov ebp, esp
 	
@@ -183,59 +254,10 @@ J_EXIT:
 	ret 8
 colisaoPredios endp
 
-moverPredios proc uses ecx ebx esi edi
-	movzx ecx, predios_count
-	cmp ecx, 0
-	je J_EXIT
-	
-	mov ebx, 0
-	
-LP_0:
-	push 0
-	call manipularPredio
-	dec predios_pos[ebx]
-	
-	inc ebx
-	loop LP_0
-	
-	movzx ecx, predios_count
-	mov ebx, 0
-	
-	call GetTextColor
-	push eax
-	
-	mov eax, lightGray
-	call SetTextColor
-
-LP_1:
-	cmp predios_pos[ebx], -4
-	je SKIP_DESENHAR
-	
-	push 1
-	call manipularPredio
-	
-SKIP_DESENHAR:
-	inc ebx
-	loop LP_1
-	
-	pop eax
-	call SetTextColor
-
-	cmp predios_pos[0], -4
-	jne J_EXIT
-	
-	movzx ecx, predios_count
-	dec predios_count
-	mov edi, OFFSET predios_pos
-	mov esi, edi
-	inc esi
-	rep movsb
-
-J_EXIT:
-	ret
-moverPredios endp
-
+;------------------------------------------------
 spawnPredio proc
+; Adiciona um prédio ao jogo
+;------------------------------------------------
 	push ebp
 	mov ebp, esp
 	
@@ -265,10 +287,5 @@ spawnPredio proc
 	
 	ret 4
 spawnPredio endp
-
-resetarPredios proc
-	mov predios_count, 0
-	ret
-resetarPredios endp
 
 end

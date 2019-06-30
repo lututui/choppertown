@@ -11,30 +11,75 @@ passaro_desenho BYTE "/^v^", 5Ch, 0
 passaro_clear BYTE 5 DUP (" "), 0
 
 .code
+;------------------------------------------------
+resetarPassaros proc
+; Limpar array de passaros
+;------------------------------------------------
+	mov passaros_count, 0
+	ret
+resetarPassaros endp
+
+;------------------------------------------------
+moverPassaros proc
+; Move todos os pássaros para a esquerda
+;------------------------------------------------
+	movzx ecx, passaros_count
+	cmp ecx, 0
+	je J_EXIT
+
+; // Apagar
+	mov ebx, 0
+	
+LP_0:
+	push 0
+	call manipularPassaro
+	dec (COORDENADA PTR[passaros_pos[ebx]]).X
+	
+	add ebx, 2
+	loop LP_0
+
+; // Desenhar
+	movzx ecx, passaros_count
+	mov ebx, 0
+	
+	call GetTextColor
+	push eax
+	
+	mov eax, yellow
+	call SetTextColor
+
+LP_1:
+	cmp (COORDENADA PTR[passaros_pos[ebx]]).X, -4
+	je SKIP_DESENHAR
+	
+	push 1
+	call manipularPassaro
+
+SKIP_DESENHAR:
+	add ebx, 2
+	loop LP_1
+	
+	pop eax
+	call SetTextColor
+	
+	cmp (COORDENADA PTR[passaros_pos[0]]).X, -4
+	jne J_EXIT
+	
+	movzx ecx, passaros_count
+	dec passaros_count
+	mov edi, offset passaros_pos
+	mov esi, edi
+	add esi, 2
+	rep movsw
+
+J_EXIT:
+	ret
+moverPassaros endp
+
 ;----------------------------------------------------
-manipularSegmentoPassaro proc uses ecx edx
-; Desenha ou apaga um segmento do passaro
-; Recebe:
-;		Endereço de passaro_desenho ou passaro_clear
-;----------------------------------------------------
-local write_buffer[6]:BYTE	
-	mov ecx, [ebp + 12]
-	mov esi, [ebp + 8]
-	add esi, [ebp + 16]
-	
-	lea edi, write_buffer
-	rep movsb
-	
-	mov BYTE PTR [edi], 0
-	lea edx, write_buffer
-	
-	call WriteString
-
-	ret 4
-manipularSegmentoPassaro endp
-
-
 manipularPassaro proc uses edx eax
+; Desenha ou apaga um pássaro
+;----------------------------------------------------
 local passaros_off:BYTE, passaros_len:BYTE	
 	mov dl, (COORDENADA PTR [passaros_pos[ebx]]).X
 	mov dh, (COORDENADA PTR [passaros_pos[ebx]]).Y
@@ -94,7 +139,32 @@ J_EXIT:
 	ret 4
 manipularPassaro endp
 
+;----------------------------------------------------
+manipularSegmentoPassaro proc uses ecx edx
+; Desenha ou apaga um segmento do passaro
+; Recebe:
+;		Endereço de passaro_desenho ou passaro_clear
+;----------------------------------------------------
+local write_buffer[6]:BYTE	
+	mov ecx, [ebp + 12]
+	mov esi, [ebp + 8]
+	add esi, [ebp + 16]
+	
+	lea edi, write_buffer
+	rep movsb
+	
+	mov BYTE PTR [edi], 0
+	lea edx, write_buffer
+	
+	call WriteString
+
+	ret 4
+manipularSegmentoPassaro endp
+
+;------------------------------------------------
 colisaoPassaros proc
+; Calcula a colisão dos pássaros com o helicoptero
+;------------------------------------------------
 	push ebp
 	mov ebp, esp
 	
@@ -172,61 +242,10 @@ J_EXIT:
 	ret 8
 colisaoPassaros endp
 
-moverPassaros proc
-	movzx ecx, passaros_count
-	cmp ecx, 0
-	je J_EXIT
-
-; // Apagar
-	mov ebx, 0
-	
-LP_0:
-	push 0
-	call manipularPassaro
-	dec (COORDENADA PTR[passaros_pos[ebx]]).X
-	
-	add ebx, 2
-	loop LP_0
-
-; // Desenhar
-	movzx ecx, passaros_count
-	mov ebx, 0
-	
-	call GetTextColor
-	push eax
-	
-	mov eax, yellow
-	call SetTextColor
-
-LP_1:
-	cmp (COORDENADA PTR[passaros_pos[ebx]]).X, -4
-	je SKIP_DESENHAR
-	
-	push 1
-	call manipularPassaro
-
-SKIP_DESENHAR:
-	add ebx, 2
-	loop LP_1
-	
-	pop eax
-	call SetTextColor
-	
-	cmp (COORDENADA PTR[passaros_pos[0]]).X, -4
-	jne J_EXIT
-	
-	movzx ecx, passaros_count
-	dec passaros_count
-	mov edi, offset passaros_pos
-	mov esi, edi
-	add esi, 2
-	rep movsw
-
-J_EXIT:
-	ret
-moverPassaros endp
-
+;------------------------------------------------
 spawnPassaro proc
+; Adiciona um pássaro ao jogo
+;------------------------------------------------
 	push ebp
 	mov ebp, esp
 	
@@ -263,10 +282,5 @@ spawnPassaro proc
 	
 	ret 4
 spawnPassaro endp
-
-resetarPassaros proc
-	mov passaros_count, 0
-	ret
-resetarPassaros endp
 
 end
