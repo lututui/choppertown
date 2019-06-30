@@ -15,13 +15,14 @@ spawn_cooldown BYTE 0
 
 opcao_selecionada BYTE 0
 
-tela_atual BYTE 3
+tela_atual BYTE 4
 tela_base BYTE 201, COLUNAS - 2 DUP(205), 187, 0,
 			LINHAS - 2 DUP(186, COLUNAS - 2 DUP(" "), 186, 0),
 			200, COLUNAS - 2 DUP(205), 188, 0
 
 pontos DWORD 0
 ciclos DWORD 0
+freq BYTE 100
 
 .code
 
@@ -240,6 +241,9 @@ desenharTelaInicial proc
 
 	mGotoxy 54, 20
 	mWrite "Sobre"
+	
+	mGotoxy 54, 22
+	mWrite "Configuracao"
 
 	ret
 desenharTelaInicial endp
@@ -349,12 +353,36 @@ moverParaSeletor endp
 ;;; Procedimentos que controlam o seletor do menu
 ;;;
 
+incDificuldadeSelecionada proc
+	sub freq, 50
+	
+	cmp freq, 50
+	jge J_EXIT
+	
+	mov freq, 150
+
+J_EXIT:
+	ret
+incDificuldadeSelecionada endp
+
+decDificuldadeSelecionada proc
+	add freq, 50
+	
+	cmp freq, 200
+	jge J_EXIT
+	
+	mov freq, 50
+
+J_EXIT:
+	ret
+decDificuldadeSelecionada endp
+
 ; incOpcaoSelecionada
 ; Move o seletor para baixo na memória
 incOpcaoSelecionada proc
 	inc opcao_selecionada
 	
-	cmp opcao_selecionada, 2
+	cmp opcao_selecionada, 3
 	jle J_EXIT
 	
 	mov opcao_selecionada, 0
@@ -371,7 +399,7 @@ decOpcaoSelecionada proc
 	cmp opcao_selecionada, 0
 	jge J_EXIT
 	
-	mov opcao_selecionada, 2
+	mov opcao_selecionada, 3
 
 J_EXIT:
 	ret
@@ -420,7 +448,6 @@ decHelicoptero endp
 
 resetarJogo proc
 	mov colidiu, 0
-	mov tela_atual, 3
 	mov heli_pos, 3
 	mov pontos, -10
 	
@@ -429,6 +456,122 @@ resetarJogo proc
 	
 	ret
 resetarJogo endp
+
+desenharTelaConfiguracao proc
+	call desenharTelaBase
+	call desenharTitulo
+	
+	mGotoxy 54, 16
+	mWrite "Facil"
+	
+	mGotoxy 54, 18
+	mWrite "Normal"
+	
+	mGotoxy 54, 20
+	mWrite "Dificil"
+	
+	ret
+desenharTelaConfiguracao endp
+
+desenharSeletorDificuldade proc
+	call moverParaSeletorDificuldade
+	
+	mWriteChar 175
+	
+	ret
+desenharSeletorDificuldade endp
+
+limparSeletorDificuldade proc
+	call moverParaSeletorDificuldade
+	
+	mWriteChar 32
+	
+	ret
+limparSeletorDificuldade endp
+
+moverParaSeletorDificuldade proc uses eax edx
+	movzx eax, freq
+	
+	cmp eax, 150
+	je FACIL
+	
+	cmp eax, 100
+	je NORMAL
+	
+	jmp DIFICIL
+	
+FACIL:
+	mov ah, 0
+	jmp CONTINUE
+	
+NORMAL:
+	mov ah, 1
+	jmp CONTINUE
+
+DIFICIL:
+	mov ah, 2
+	
+CONTINUE:
+	mov al, SELETOR_STEP
+	mul ah
+	add ax, SELETOR_OFFSET
+	
+	mov dl, 51
+	mov dh, al
+	call Gotoxy
+	
+	ret
+moverParaSeletorDificuldade endp
+
+telaConfiguracao proc uses eax
+	call desenharTelaConfiguracao
+	call desenharSeletorDificuldade
+
+LP_0:
+	mov eax, 50
+	call Delay
+	
+	call ReadKey
+	jz LP_0
+	
+	cmp dx, VK_DOWN
+	je TECLA_DOWN
+
+	cmp dx, 53h
+	je TECLA_DOWN
+
+	cmp dx, VK_UP
+	je TECLA_UP
+
+	cmp dx, 57h
+	je TECLA_UP
+
+	cmp dx, VK_RETURN
+	je TECLA_ENTER
+	
+	cmp dx, VK_ESCAPE
+	je TECLA_ENTER
+
+	jmp LP_0
+	
+TECLA_DOWN:
+	call limparSeletorDificuldade
+	call incDificuldadeSelecionada
+	call desenharSeletorDificuldade
+	
+	jmp LP_0
+
+TECLA_UP:
+	call limparSeletorDificuldade
+	call decDificuldadeSelecionada
+	call desenharSeletorDificuldade
+	
+	jmp LP_0
+
+TECLA_ENTER:
+	mov tela_atual, 4
+	ret
+telaConfiguracao endp
 
 ; telaPrincipal eax edx
 ; Controla a tela de jogo
@@ -523,6 +666,8 @@ TECLA_ESC:
 	jmp J_EXIT
 
 J_EXIT:
+	mov tela_atual, 4
+	
 	ret
 telaPrincipal endp
 
@@ -550,7 +695,7 @@ TECLA_ENTER:
 	jmp J_EXIT
 
 TECLA_ESC:
-	mov tela_atual, 3
+	mov tela_atual, 4
 	jmp J_EXIT
 	
 J_EXIT:
@@ -576,9 +721,8 @@ LP_0:
 	jmp LP_0
 
 TECLA_ESC:
-	mov tela_atual, 3
+	mov tela_atual, 4
 	ret
-
 telaInstrucoes endp
 
 ; telaSobre eax edx
@@ -599,7 +743,7 @@ LP_0:
 	jmp LP_0
 
 TECLA_ESC:
-	mov tela_atual, 3
+	mov tela_atual, 4
 	ret
 
 telaSobre endp
@@ -685,6 +829,9 @@ LP_0:
 	je SOBRE
 	
 	cmp tela_atual, 3
+	je CONFIGURAR
+	
+	cmp tela_atual, 4
 	je INICIAL
 	
 	cmp tela_atual, 5
@@ -710,6 +857,10 @@ PRINCIPAL:
 
 FIM_DE_JOGO:
 	call telaFimDeJogo
+	jmp LP_0
+
+CONFIGURAR:
+	call telaConfiguracao
 	jmp LP_0
 
 	exit
