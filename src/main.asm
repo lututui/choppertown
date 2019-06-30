@@ -424,6 +424,7 @@ resetarJogo proc
 	
 	call resetarPredios
 	call resetarPassaros
+	call Randomize
 	
 	ret
 resetarJogo endp
